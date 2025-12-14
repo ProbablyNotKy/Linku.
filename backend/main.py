@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 
-from database import engine, Base, get_db
+from database import engine, Base, get_db, SessionLocal
 from models import Scholarship
 from schemas import ScholarshipCreate, ScholarshipResponse
+from seed import seed_database
 
 app = FastAPI(title="Ascendia API", description="Malaysian Scholarship Discovery Platform")
 
@@ -21,6 +22,11 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event():
     Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        seed_database(db)
+    finally:
+        db.close()
 
 @app.get("/")
 def read_root():

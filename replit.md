@@ -14,6 +14,12 @@ This is a **Polyglot Monorepo** with:
 
 ```
 /
+├── backend/                 # FastAPI Python backend
+│   ├── main.py              # FastAPI app with CORS, auto-seeds on startup
+│   ├── database.py          # SQLAlchemy with Replit PostgreSQL
+│   ├── models.py            # Scholarship SQLAlchemy model
+│   ├── schemas.py           # Pydantic request/response schemas
+│   └── seed.py              # Database seeding with 5 Malaysian scholarships
 ├── client/                  # React/Vite frontend (currently active)
 │   ├── src/
 │   │   ├── components/      # UI components
@@ -30,7 +36,7 @@ This is a **Polyglot Monorepo** with:
 │   │   └── App.tsx
 │   └── index.html
 ├── frontend/                # Next.js alternative (for future use)
-├── server/                  # Express server (Vite dev server)
+├── server/                  # Express server (Vite dev server, proxies to FastAPI)
 ├── shared/
 │   └── schema.ts            # Shared TypeScript types (Scholarship interface)
 └── design_guidelines.md     # UI/UX design specifications
@@ -42,15 +48,29 @@ This is a **Polyglot Monorepo** with:
 ```typescript
 interface Scholarship {
   id: number;
-  name: string;
+  title: string;
   provider: string;
   amount: string;
   deadline: string;
   education_level: string;
-  description?: string;
-  requirements?: string[];
-  link?: string;
+  url?: string;
+  tags?: string[];
 }
+```
+
+## Seed Data
+
+The database is automatically seeded with 5 Malaysian scholarships on server startup (if empty):
+
+1. **Yayasan Khazanah Global Scholarship** - Full Ride + Allowance (Undergraduate)
+2. **Maybank Group Scholarship Programme** - RM 40,000/year (Undergraduate)  
+3. **JPA PIDN Scholarship** - Full Coverage (Degree)
+4. **Shell Malaysia Scholarship** - RM 12,000 + Internship (Undergraduate)
+5. **The Star Education Fund** - Tuition Fee Waiver (Diploma/Degree)
+
+To manually run the seed script:
+```bash
+cd backend && python seed.py
 ```
 
 ## API Integration
