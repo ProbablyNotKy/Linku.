@@ -1,9 +1,7 @@
 import { Scholarship } from "@shared/schema";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
-
 export async function fetchScholarships(): Promise<Scholarship[]> {
-  const response = await fetch(`${API_BASE_URL}/scholarships`, {
+  const response = await fetch("/api/scholarships", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -18,7 +16,7 @@ export async function fetchScholarships(): Promise<Scholarship[]> {
 }
 
 export async function fetchScholarshipById(id: number): Promise<Scholarship> {
-  const response = await fetch(`${API_BASE_URL}/scholarships/${id}`, {
+  const response = await fetch(`/api/scholarships/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

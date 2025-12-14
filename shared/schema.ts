@@ -20,12 +20,11 @@ export type User = typeof users.$inferSelect;
 // Scholarship type matching FastAPI backend
 export interface Scholarship {
   id: number;
-  name: string;
+  title: string;
   provider: string;
   amount: string;
   deadline: string;
   education_level: string;
-  description?: string;
-  requirements?: string[];
-  link?: string;
+  url?: string;
+  tags?: string[];
 }

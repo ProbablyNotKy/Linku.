@@ -39,7 +39,7 @@ export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
             className="text-lg font-bold text-foreground leading-tight flex-1"
             data-testid={`text-title-${scholarship.id}`}
           >
-            {scholarship.name}
+            {scholarship.title}
           </h3>
           <Badge 
             variant="secondary"
@@ -88,11 +88,6 @@ export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
             )}
           </div>
 
-          {scholarship.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
-              {scholarship.description}
-            </p>
-          )}
         </div>
       </div>
 
@@ -102,8 +97,8 @@ export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
           style={{ backgroundColor: "#4f46e5" }}
           data-testid={`button-apply-${scholarship.id}`}
           onClick={() => {
-            if (scholarship.link) {
-              window.open(scholarship.link, "_blank");
+            if (scholarship.url) {
+              window.open(scholarship.url, "_blank");
             }
           }}
         >
