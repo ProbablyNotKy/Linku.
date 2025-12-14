@@ -103,6 +103,17 @@ The frontend fetches data from FastAPI backend at `http://127.0.0.1:8000`:
 - Error text: "Ralat berlaku" (Error occurred)
 - Retry button: "Cuba Lagi" (Try Again)
 
+## Admin Dashboard
+
+Access the admin page at `/admin` (hidden from main navigation).
+
+**Authentication:** Enter admin key `Ascendia2024` to access the dashboard.
+
+**Features:**
+- Create new scholarship opportunities
+- Form fields: Title, Provider, Amount, Deadline, Education Level, URL, Tags
+- Success/error feedback after submission
+
 ## Future Features (Planned)
 
 - Filtering by education level, provider, amount range
