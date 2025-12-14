@@ -16,3 +16,16 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+// Scholarship type matching FastAPI backend
+export interface Scholarship {
+  id: number;
+  name: string;
+  provider: string;
+  amount: string;
+  deadline: string;
+  education_level: string;
+  description?: string;
+  requirements?: string[];
+  link?: string;
+}
