@@ -1,0 +1,43 @@
+Subject: Implement Search, Filtering, and Smart UI Cards
+
+Context: We are building Ascendia (FastAPI Backend + Next.js Frontend). Currently, the homepage lists all scholarships. We need to add functionality to filter these results and improve how the "Opportunity Cards" look.
+
+Step 1: Backend Update (/backend/main.py) Update the GET /scholarships/ endpoint to accept two optional query parameters: query (string) and level (string).
+
+Logic:
+
+If level is provided, filter the database results where Scholarship.education_level matches.
+
+If query is provided, perform a case-insensitive search on both Scholarship.title AND Scholarship.tags.
+
+Sorting: Always order the results by deadline (ascending), so upcoming deadlines appear first.
+
+Step 2: Frontend Dependencies In the /frontend directory, install lodash (and its types @types/lodash) to help us debounce the search input.
+
+Step 3: Frontend Update (/frontend/app/page.tsx) Refactor the homepage to include a Search & Filter Bar at the top and improved Opportunity Cards.
+
+A. The Search & Filter Bar:
+
+Search Input: When the user types, wait 500ms (debounce), then update the browser URL search params (e.g., ?query=engineering).
+
+Dropdown: A select menu for "Education Level" (SPM/STPM, Diploma, Degree, etc.). Changing this updates the URL (e.g., ?level=Diploma).
+
+Data Fetching: Use useEffect to re-fetch data from the backend whenever the URL search params change.
+
+B. The Smart Opportunity Card (UI Logic):
+
+Tags: The tags field comes from the DB as a comma-separated string (e.g., "STEM, Merit, Local"). Split this string and render them as small gray "pill" badges.
+
+Deadline Highlighting:
+
+If the deadline is within 30 days: Render the date text in Red and add a subtle red border to the card.
+
+If the deadline is more than 30 days away: Render it in Amber/Gray.
+
+If the deadline has passed: Gray out the entire card (reduce opacity to 0.6) and label it "Expired".
+
+C. Visual Polish:
+
+Use the brand colors: indigo-600 for primary actions/titles, amber-500 for money/high-priority info.
+
+Ensure the layout uses a responsive grid (1 column mobile, 3 columns desktop).

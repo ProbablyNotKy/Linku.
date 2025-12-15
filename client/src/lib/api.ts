@@ -1,7 +1,19 @@
 import { Scholarship } from "@shared/schema";
 
-export async function fetchScholarships(): Promise<Scholarship[]> {
-  const response = await fetch("/api/scholarships", {
+export interface FetchScholarshipsParams {
+  query?: string;
+  level?: string;
+}
+
+export async function fetchScholarships(params?: FetchScholarshipsParams): Promise<Scholarship[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.query) searchParams.append("query", params.query);
+  if (params?.level) searchParams.append("level", params.level);
+  
+  const queryString = searchParams.toString();
+  const url = `/api/scholarships${queryString ? `?${queryString}` : ""}`;
+  
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy import func, or_
+from typing import List, Optional
 
 from database import engine, Base, get_db, SessionLocal
 from models import Scholarship
@@ -41,8 +42,30 @@ def create_scholarship(scholarship: ScholarshipCreate, db: Session = Depends(get
     return db_scholarship
 
 @app.get("/scholarships/", response_model=List[ScholarshipResponse])
-def list_scholarships(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    scholarships = db.query(Scholarship).offset(skip).limit(limit).all()
+def list_scholarships(
+    skip: int = 0,
+    limit: int = 100,
+    query: Optional[str] = Query(None, description="Search in title and tags"),
+    level: Optional[str] = Query(None, description="Filter by education level"),
+    db: Session = Depends(get_db)
+):
+    q = db.query(Scholarship)
+    
+    if level:
+        q = q.filter(func.lower(Scholarship.education_level) == func.lower(level))
+    
+    if query:
+        search_term = f"%{query.lower()}%"
+        # Search title OR cast tags array to text and search
+        q = q.filter(
+            or_(
+                func.lower(Scholarship.title).like(search_term),
+                func.lower(func.array_to_string(Scholarship.tags, ' ')).like(search_term)
+            )
+        )
+    
+    q = q.order_by(Scholarship.deadline.asc())
+    scholarships = q.offset(skip).limit(limit).all()
     return scholarships
 
 @app.get("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)

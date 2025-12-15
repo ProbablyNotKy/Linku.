@@ -8,12 +8,17 @@ interface ScholarshipCardProps {
   scholarship: Scholarship;
 }
 
-function isDeadlineUrgent(deadline: string): boolean {
+function getDeadlineStatus(deadline: string): "urgent" | "normal" | "expired" {
   const deadlineDate = new Date(deadline);
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   const diffTime = deadlineDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays <= 30 && diffDays >= 0;
+  
+  if (diffDays < 0) return "expired";
+  if (diffDays <= 30) return "urgent";
+  return "normal";
 }
 
 function formatDate(dateString: string): string {
@@ -26,11 +31,15 @@ function formatDate(dateString: string): string {
 }
 
 export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
-  const isUrgent = isDeadlineUrgent(scholarship.deadline);
+  const deadlineStatus = getDeadlineStatus(scholarship.deadline);
+  const isExpired = deadlineStatus === "expired";
+  const isUrgent = deadlineStatus === "urgent";
 
   return (
     <Card 
-      className="flex flex-col h-full"
+      className={`flex flex-col h-full transition-all ${
+        isExpired ? "opacity-60" : ""
+      } ${isUrgent ? "border-red-300 dark:border-red-800" : ""}`}
       data-testid={`card-scholarship-${scholarship.id}`}
     >
       <div className="p-6 flex-1 flex flex-col">
@@ -76,18 +85,38 @@ export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
           <div className="flex items-center flex-wrap gap-2">
             <Calendar className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
             <span 
-              className={`text-sm font-medium ${isUrgent ? "text-red-600" : "text-muted-foreground"}`}
+              className={`text-sm font-medium ${
+                isExpired ? "text-muted-foreground line-through" : 
+                isUrgent ? "text-red-600" : "text-amber-600"
+              }`}
               data-testid={`text-deadline-${scholarship.id}`}
             >
-              Deadline: {formatDate(scholarship.deadline)}
+              {isExpired ? "Expired: " : "Deadline: "}{formatDate(scholarship.deadline)}
             </span>
-            {isUrgent && (
+            {isUrgent && !isExpired && (
               <Badge variant="destructive" className="text-xs">
                 Urgent
               </Badge>
             )}
+            {isExpired && (
+              <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
+                Expired
+              </Badge>
+            )}
           </div>
 
+          {scholarship.tags && scholarship.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3" data-testid={`tags-${scholarship.id}`}>
+              {scholarship.tags.map((tag, index) => (
+                <span 
+                  key={index}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -95,15 +124,16 @@ export default function ScholarshipCard({ scholarship }: ScholarshipCardProps) {
         <Button
           className="w-full"
           style={{ backgroundColor: "#4f46e5" }}
+          disabled={isExpired}
           data-testid={`button-apply-${scholarship.id}`}
           onClick={() => {
-            if (scholarship.url) {
+            if (scholarship.url && !isExpired) {
               window.open(scholarship.url, "_blank");
             }
           }}
         >
-          Apply Now
-          <ExternalLink className="w-4 h-4 ml-2" />
+          {isExpired ? "Application Closed" : "Apply Now"}
+          {!isExpired && <ExternalLink className="w-4 h-4 ml-2" />}
         </Button>
       </div>
     </Card>

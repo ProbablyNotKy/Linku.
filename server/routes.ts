@@ -10,7 +10,13 @@ export async function registerRoutes(
 ): Promise<Server> {
   app.get("/api/scholarships", async (req, res) => {
     try {
-      const response = await fetch(`${FASTAPI_URL}/scholarships/`);
+      const params = new URLSearchParams();
+      if (req.query.query) params.append("query", req.query.query as string);
+      if (req.query.level) params.append("level", req.query.level as string);
+      const queryString = params.toString();
+      const url = `${FASTAPI_URL}/scholarships/${queryString ? `?${queryString}` : ""}`;
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`FastAPI error: ${response.status}`);
       }
