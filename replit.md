@@ -76,8 +76,12 @@ cd backend && python seed.py
 ## API Integration
 
 The frontend fetches data from FastAPI backend at `http://127.0.0.1:8000`:
-- `GET /scholarships` - List all scholarships
+- `GET /scholarships/?query={search}&level={level}` - List scholarships with optional filtering
+  - `query`: Search in title and tags (uses array_to_string for tag search)
+  - `level`: Filter by education level (case-insensitive)
+  - Results ordered by deadline (ascending)
 - `GET /scholarships/{id}` - Get single scholarship
+- `POST /scholarships/` - Create new scholarship (admin)
 
 ## Running the Application
 
@@ -114,10 +118,16 @@ Access the admin page at `/admin` (hidden from main navigation).
 - Form fields: Title, Provider, Amount, Deadline, Education Level, URL, Tags
 - Success/error feedback after submission
 
+## Current Features
+
+- **Search & Filter**: Search scholarships by title/tags with 500ms debounce, filter by education level
+- **Deadline Highlighting**: Cards show urgent (red border, <30 days) and expired (dimmed, disabled) states
+- **Tag Pills**: Visual tags displayed on scholarship cards
+- **Responsive Grid**: 3 columns desktop, 2 tablet, 1 mobile
+
 ## Future Features (Planned)
 
-- Filtering by education level, provider, amount range
+- Filtering by provider, amount range
 - Sorting by deadline, amount, alphabetical order
 - Detailed scholarship view page
-- Search functionality
 - Deadline notifications and countdown timers
