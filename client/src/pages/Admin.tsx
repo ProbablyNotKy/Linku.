@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft } from "lucide-react";
 
 const ADMIN_KEY = "Ascendia2024";
-const API_BASE_URL = "http://127.0.0.1:8000";
 
 const EDUCATION_LEVELS = ["SPM", "Diploma", "Degree", "Masters", "Undergraduate", "Postgraduate"];
 
@@ -18,7 +17,7 @@ interface ScholarshipCreate {
 }
 
 async function createScholarship(data: ScholarshipCreate) {
-  const response = await fetch(`${API_BASE_URL}/scholarships/`, {
+  const response = await fetch("/api/scholarships", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
