@@ -74,3 +74,26 @@ def get_scholarship(scholarship_id: int, db: Session = Depends(get_db)):
     if scholarship is None:
         raise HTTPException(status_code=404, detail="Scholarship not found")
     return scholarship
+
+@app.put("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
+def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate, db: Session = Depends(get_db)):
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
+    if scholarship is None:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    for key, value in scholarship_data.model_dump().items():
+        setattr(scholarship, key, value)
+    
+    db.commit()
+    db.refresh(scholarship)
+    return scholarship
+
+@app.delete("/scholarships/{scholarship_id}")
+def delete_scholarship(scholarship_id: int, db: Session = Depends(get_db)):
+    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
+    if scholarship is None:
+        raise HTTPException(status_code=404, detail="Scholarship not found")
+    
+    db.delete(scholarship)
+    db.commit()
+    return {"message": "Scholarship deleted successfully"}

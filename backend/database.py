@@ -3,19 +3,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-PGHOST = os.environ.get("PGHOST")
-PGPORT = os.environ.get("PGPORT", "5432")
-PGUSER = os.environ.get("PGUSER")
-PGPASSWORD = os.environ.get("PGPASSWORD", "")
-PGDATABASE = os.environ.get("PGDATABASE")
-
-if PGHOST and PGUSER and PGDATABASE:
-    DATABASE_URL = f"postgresql://{PGUSER}:{PGPASSWORD}@{PGHOST}:{PGPORT}/{PGDATABASE}"
-else:
-    DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("Database connection not configured. Set PGHOST/PGUSER/PGDATABASE or DATABASE_URL")
+    raise ValueError("DATABASE_URL environment variable is required. Please set your Supabase connection string.")
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if "sslmode" not in DATABASE_URL:
+    separator = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{separator}sslmode=require"
+
+print(f"[Database] Connecting to PostgreSQL database...")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
