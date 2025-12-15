@@ -1,0 +1,52 @@
+📋 The "Force Supabase & Fix Production" Prompt
+Context: We are building Ascendia.
+
+Strict Database Rule: You must ONLY use the Supabase PostgreSQL database defined in the DATABASE_URL secret. Remove any code that falls back to SQLite or local files.
+
+Current Bug: The frontend is failing in production because of CORS/URL issues.
+
+Missing Feature: The Admin panel needs Edit and Delete buttons.
+
+Step 1: Fix Backend Database Connection (/backend/database.py)
+
+Read os.getenv("DATABASE_URL").
+
+CRITICAL FIX: If the URL starts with postgres://, replace it with postgresql://. (Supabase uses the legacy format, SQLAlchemy requires the new format).
+
+Remove any try/except blocks that create a local SQLite database if the connection fails. If DATABASE_URL is missing or invalid, raise an error immediately.
+
+Step 2: Fix Production Networking (/backend/main.py & Frontend)
+
+Backend: In main.py, update CORSMiddleware.
+
+Allow allow_origins=["*"] temporarily to ensure the frontend can talk to the backend from any Replit URL.
+
+Frontend: Create a utility file frontend/src/utils/api.ts (or similar).
+
+Logic: export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://[YOUR_REPLIT_URL].replit.app";
+
+Instruction for Developer: You must clearly log to the console which URL the frontend is trying to hit.
+
+Update app/page.tsx and app/admin/page.tsx to use this variable instead of hardcoded localhost.
+
+Step 3: Admin Dashboard Upgrade (CRUD)
+
+Backend: Add these endpoints to main.py:
+
+PUT /scholarships/{id}: Accepts the ScholarshipCreate schema and updates the record.
+
+DELETE /scholarships/{id}: Deletes the record.
+
+Frontend (/app/admin/page.tsx):
+
+Below the "Add Scholarship" form, render a "Current Opportunities" Table.
+
+Columns: ID, Title, Provider, Deadline, Actions.
+
+Actions:
+
+Delete Button: specific red icon/button that calls the DELETE endpoint.
+
+Edit Button: specific blue icon/button. When clicked, it should populate the form at the top with that scholarship's data and change the "Submit" button to "Update Scholarship".
+
+Execution Order: Fix database.py first -> Fix Networking -> Add Admin CRUD.
