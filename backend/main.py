@@ -1,17 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
 from typing import List, Optional
 
-from database import engine, Base, get_db, SessionLocal
-from models import Scholarship
+from supabase_client import supabase
 from schemas import ScholarshipCreate, ScholarshipResponse
-from seed import seed_database
 
 app = FastAPI(title="Ascendia API", description="Malaysian Scholarship Discovery Platform")
 
-# CORS Middleware - Allow frontend on port 5000 to access backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,24 +17,87 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
     try:
-        seed_database(db)
-    finally:
-        db.close()
+        result = supabase.table("scholarships").select("id").limit(1).execute()
+        count = len(result.data)
+        print(f"[Supabase] Connection verified. Found {count} scholarship(s) in test query.")
+        
+        if count == 0:
+            seed_scholarships()
+    except Exception as e:
+        print(f"[Supabase] Warning: Could not verify connection: {e}")
+
+def seed_scholarships():
+    print("[Supabase] Seeding initial scholarship data...")
+    scholarships = [
+        {
+            "title": "Yayasan Khazanah Global Scholarship",
+            "provider": "Yayasan Khazanah",
+            "amount": "Full Ride + Allowance",
+            "deadline": "2025-03-31",
+            "education_level": "Undergraduate",
+            "url": "https://www.yayasankhazanah.com.my/scholarship/",
+            "tags": ["full-ride", "overseas", "merit-based"]
+        },
+        {
+            "title": "Maybank Group Scholarship Programme",
+            "provider": "Maybank Foundation",
+            "amount": "RM 40,000/year",
+            "deadline": "2025-04-15",
+            "education_level": "Undergraduate",
+            "url": "https://www.maybank.com/scholarship",
+            "tags": ["banking", "finance", "local"]
+        },
+        {
+            "title": "JPA PIDN Scholarship",
+            "provider": "Public Service Department",
+            "amount": "Full Coverage",
+            "deadline": "2025-05-01",
+            "education_level": "Degree",
+            "url": "https://www.jpa.gov.my/",
+            "tags": ["government", "full-coverage", "bonded"]
+        },
+        {
+            "title": "Shell Malaysia Scholarship",
+            "provider": "Shell Malaysia",
+            "amount": "RM 12,000 + Internship",
+            "deadline": "2025-02-28",
+            "education_level": "Undergraduate",
+            "url": "https://www.shell.com.my/careers/scholarships.html",
+            "tags": ["engineering", "oil-gas", "internship"]
+        },
+        {
+            "title": "The Star Education Fund",
+            "provider": "The Star",
+            "amount": "Tuition Fee Waiver",
+            "deadline": "2025-06-30",
+            "education_level": "Diploma/Degree",
+            "url": "https://www.thestar.com.my/education",
+            "tags": ["media", "journalism", "local"]
+        }
+    ]
+    
+    try:
+        result = supabase.table("scholarships").insert(scholarships).execute()
+        print(f"[Supabase] Seeded {len(result.data)} scholarships successfully!")
+    except Exception as e:
+        print(f"[Supabase] Error seeding data: {e}")
 
 @app.get("/")
 def read_root():
     return {"message": "Ascendia API - Malaysian Scholarship Discovery Platform"}
 
 @app.post("/scholarships/", response_model=ScholarshipResponse)
-def create_scholarship(scholarship: ScholarshipCreate, db: Session = Depends(get_db)):
-    db_scholarship = Scholarship(**scholarship.model_dump())
-    db.add(db_scholarship)
-    db.commit()
-    db.refresh(db_scholarship)
-    return db_scholarship
+def create_scholarship(scholarship: ScholarshipCreate):
+    data = scholarship.model_dump()
+    if data.get("deadline"):
+        data["deadline"] = str(data["deadline"])
+    
+    result = supabase.table("scholarships").insert(data).execute()
+    
+    if result.data:
+        return result.data[0]
+    raise HTTPException(status_code=500, detail="Failed to create scholarship")
 
 @app.get("/scholarships/", response_model=List[ScholarshipResponse])
 def list_scholarships(
@@ -47,53 +105,50 @@ def list_scholarships(
     limit: int = 100,
     query: Optional[str] = Query(None, description="Search in title and tags"),
     level: Optional[str] = Query(None, description="Filter by education level"),
-    db: Session = Depends(get_db)
 ):
-    q = db.query(Scholarship)
+    q = supabase.table("scholarships").select("*")
     
     if level:
-        q = q.filter(func.lower(Scholarship.education_level) == func.lower(level))
+        q = q.ilike("education_level", f"%{level}%")
     
     if query:
-        search_term = f"%{query.lower()}%"
-        # Search title OR cast tags array to text and search
-        q = q.filter(
-            or_(
-                func.lower(Scholarship.title).like(search_term),
-                func.lower(func.array_to_string(Scholarship.tags, ' ')).like(search_term)
-            )
-        )
+        q = q.ilike("title", f"%{query}%")
     
-    q = q.order_by(Scholarship.deadline.asc())
-    scholarships = q.offset(skip).limit(limit).all()
-    return scholarships
+    q = q.order("deadline", desc=False)
+    q = q.range(skip, skip + limit - 1)
+    
+    result = q.execute()
+    return result.data
 
 @app.get("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
-def get_scholarship(scholarship_id: int, db: Session = Depends(get_db)):
-    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
-    if scholarship is None:
+def get_scholarship(scholarship_id: int):
+    result = supabase.table("scholarships").select("*").eq("id", scholarship_id).execute()
+    
+    if not result.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
-    return scholarship
+    return result.data[0]
 
 @app.put("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
-def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate, db: Session = Depends(get_db)):
-    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
-    if scholarship is None:
+def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate):
+    existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
     
-    for key, value in scholarship_data.model_dump().items():
-        setattr(scholarship, key, value)
+    data = scholarship_data.model_dump()
+    if data.get("deadline"):
+        data["deadline"] = str(data["deadline"])
     
-    db.commit()
-    db.refresh(scholarship)
-    return scholarship
+    result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
+    
+    if result.data:
+        return result.data[0]
+    raise HTTPException(status_code=500, detail="Failed to update scholarship")
 
 @app.delete("/scholarships/{scholarship_id}")
-def delete_scholarship(scholarship_id: int, db: Session = Depends(get_db)):
-    scholarship = db.query(Scholarship).filter(Scholarship.id == scholarship_id).first()
-    if scholarship is None:
+def delete_scholarship(scholarship_id: int):
+    existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
     
-    db.delete(scholarship)
-    db.commit()
+    supabase.table("scholarships").delete().eq("id", scholarship_id).execute()
     return {"message": "Scholarship deleted successfully"}
