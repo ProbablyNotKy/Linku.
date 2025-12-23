@@ -6,8 +6,9 @@ Ascendia is a scholarship discovery platform designed for Malaysian students. Th
 ## Architecture
 
 This is a **Polyglot Monorepo** with:
-- **Backend**: FastAPI (Python) - Expected to run on port 8000
+- **Backend**: FastAPI (Python) - Running on port 8000
 - **Frontend**: React/Vite (running on port 5000)
+- **Database**: Supabase (PostgreSQL with vector search capabilities for AI matching)
 - **Alternative Frontend**: Next.js version available in `/frontend` directory
 
 ## Project Structure
@@ -16,10 +17,11 @@ This is a **Polyglot Monorepo** with:
 /
 ├── backend/                 # FastAPI Python backend
 │   ├── main.py              # FastAPI app with CORS, auto-seeds on startup
-│   ├── database.py          # SQLAlchemy with Replit PostgreSQL
-│   ├── models.py            # Scholarship SQLAlchemy model
+│   ├── supabase_client.py   # Supabase REST API client
 │   ├── schemas.py           # Pydantic request/response schemas
-│   └── seed.py              # Database seeding with 5 Malaysian scholarships
+│   ├── database.py          # (Legacy) SQLAlchemy setup - not used
+│   ├── models.py            # (Legacy) SQLAlchemy model - not used
+│   └── seed.py              # (Legacy) Database seeding - not used
 ├── client/                  # React/Vite frontend (currently active)
 │   ├── src/
 │   │   ├── components/      # UI components
@@ -42,9 +44,29 @@ This is a **Polyglot Monorepo** with:
 └── design_guidelines.md     # UI/UX design specifications
 ```
 
+## Environment Variables (Secrets)
+
+Required secrets in Replit:
+- `SUPABASE_URL` - Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
+- `SUPABASE_SERVICE_KEY` - Your Supabase service_role key (for backend use)
+
 ## Data Model
 
-### Scholarship Interface
+### Scholarship Table (Supabase)
+```sql
+CREATE TABLE scholarships (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  deadline TEXT NOT NULL,
+  education_level TEXT NOT NULL,
+  url TEXT,
+  tags TEXT[]
+);
+```
+
+### Scholarship Interface (TypeScript)
 ```typescript
 interface Scholarship {
   id: number;
@@ -68,31 +90,23 @@ The database is automatically seeded with 5 Malaysian scholarships on server sta
 4. **Shell Malaysia Scholarship** - RM 12,000 + Internship (Undergraduate)
 5. **The Star Education Fund** - Tuition Fee Waiver (Diploma/Degree)
 
-To manually run the seed script:
-```bash
-cd backend && python seed.py
-```
+## API Endpoints
 
-## API Integration
-
-The frontend fetches data from FastAPI backend at `http://127.0.0.1:8000`:
+The FastAPI backend provides:
 - `GET /scholarships/?query={search}&level={level}` - List scholarships with optional filtering
-  - `query`: Search in title and tags (uses array_to_string for tag search)
+  - `query`: Search in title (case-insensitive)
   - `level`: Filter by education level (case-insensitive)
   - Results ordered by deadline (ascending)
 - `GET /scholarships/{id}` - Get single scholarship
-- `POST /scholarships/` - Create new scholarship (admin)
+- `POST /scholarships/` - Create new scholarship
+- `PUT /scholarships/{id}` - Update existing scholarship
+- `DELETE /scholarships/{id}` - Delete scholarship
 
 ## Running the Application
 
-1. **Start FastAPI Backend** (separate terminal):
-   ```bash
-   cd backend  # wherever your FastAPI code is
-   uvicorn main:app --reload --port 8000
-   ```
-
-2. **Start Frontend** (this Replit runs automatically):
-   The React/Vite frontend runs on port 5000
+The workflow `Start application` runs `npm run dev` which starts:
+1. Express server on port 5000 (serves Vite frontend)
+2. FastAPI backend on port 8000 (Supabase-powered API)
 
 ## Design System
 
@@ -115,18 +129,22 @@ Access the admin page at `/admin` (hidden from main navigation).
 
 **Features:**
 - Create new scholarship opportunities
+- Edit existing scholarships
+- Delete scholarships
 - Form fields: Title, Provider, Amount, Deadline, Education Level, URL, Tags
 - Success/error feedback after submission
 
 ## Current Features
 
-- **Search & Filter**: Search scholarships by title/tags with 500ms debounce, filter by education level
+- **Search & Filter**: Search scholarships by title with 500ms debounce, filter by education level
 - **Deadline Highlighting**: Cards show urgent (red border, <30 days) and expired (dimmed, disabled) states
 - **Tag Pills**: Visual tags displayed on scholarship cards
 - **Responsive Grid**: 3 columns desktop, 2 tablet, 1 mobile
+- **Full CRUD**: Create, Read, Update, Delete scholarships via Admin dashboard
 
 ## Future Features (Planned)
 
+- AI-powered scholarship matching using Supabase vector search
 - Filtering by provider, amount range
 - Sorting by deadline, amount, alphabetical order
 - Detailed scholarship view page
