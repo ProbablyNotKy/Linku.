@@ -32,6 +32,13 @@ interface FormData {
   education_level: string;
   url: string;
   tags: string;
+  study_areas: string[];
+  min_cgpa: string;
+  min_spm_as: string;
+  household_income_max: string;
+  state_restriction: string;
+  is_bumiputera_only: boolean;
+  ai_matching_context: string;
 }
 
 const emptyFormData: FormData = {
@@ -42,6 +49,13 @@ const emptyFormData: FormData = {
   education_level: "",
   url: "",
   tags: "",
+  study_areas: [],
+  min_cgpa: "",
+  min_spm_as: "",
+  household_income_max: "",
+  state_restriction: "",
+  is_bumiputera_only: false,
+  ai_matching_context: "",
 };
 
 export default function Admin() {
@@ -278,6 +292,13 @@ export default function Admin() {
       education_level: scholarship.education_level,
       url: scholarship.url || "",
       tags: scholarship.tags?.join(", ") || "",
+      study_areas: scholarship.study_areas || [],
+      min_cgpa: scholarship.min_cgpa?.toString() || "",
+      min_spm_as: scholarship.min_spm_as?.toString() || "",
+      household_income_max: scholarship.household_income_max?.toString() || "",
+      state_restriction: scholarship.state_restriction || "",
+      is_bumiputera_only: scholarship.is_bumiputera_only || false,
+      ai_matching_context: scholarship.ai_matching_context || "",
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -310,6 +331,13 @@ export default function Admin() {
         education_level: formData.education_level,
         url: formData.url || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
+        study_areas: formData.study_areas.length > 0 ? formData.study_areas : undefined,
+        min_cgpa: formData.min_cgpa ? parseFloat(formData.min_cgpa) : null,
+        min_spm_as: formData.min_spm_as ? parseInt(formData.min_spm_as, 10) : null,
+        household_income_max: formData.household_income_max ? parseFloat(formData.household_income_max) : null,
+        state_restriction: formData.state_restriction || null,
+        is_bumiputera_only: formData.is_bumiputera_only,
+        ai_matching_context: formData.ai_matching_context || null,
       };
 
       if (editingId) {
@@ -1016,6 +1044,148 @@ export default function Admin() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Separate multiple tags with commas
                 </p>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                  Eligibility Criteria (Optional)
+                </h4>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Study Areas
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {STUDY_AREAS.map((area) => (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => {
+                          const current = formData.study_areas || [];
+                          if (current.includes(area)) {
+                            setFormData({...formData, study_areas: current.filter(a => a !== area)});
+                          } else {
+                            setFormData({...formData, study_areas: [...current, area]});
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          formData.study_areas?.includes(area)
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                        data-testid={`toggle-study-${area.replace(/\s+/g, '-').toLowerCase()}`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Min CGPA
+                    </label>
+                    <input
+                      type="number"
+                      name="min_cgpa"
+                      value={formData.min_cgpa}
+                      onChange={handleInputChange}
+                      step="0.01"
+                      min="0"
+                      max="4"
+                      placeholder="e.g., 3.5"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-min-cgpa"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Min SPM A's
+                    </label>
+                    <input
+                      type="number"
+                      name="min_spm_as"
+                      value={formData.min_spm_as}
+                      onChange={handleInputChange}
+                      min="0"
+                      max="10"
+                      placeholder="e.g., 5"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-min-spm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Max Household Income (RM)
+                    </label>
+                    <input
+                      type="number"
+                      name="household_income_max"
+                      value={formData.household_income_max}
+                      onChange={handleInputChange}
+                      min="0"
+                      placeholder="e.g., 5000"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-income-max"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      State Restriction
+                    </label>
+                    <select
+                      name="state_restriction"
+                      value={formData.state_restriction}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="select-state-restriction"
+                    >
+                      <option value="">All states eligible</option>
+                      {MALAYSIAN_STATES.map((state) => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center pt-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_bumiputera_only}
+                        onChange={(e) => setFormData({...formData, is_bumiputera_only: e.target.checked})}
+                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        data-testid="checkbox-bumiputera"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Bumiputera Only
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    AI Matching Context
+                  </label>
+                  <textarea
+                    name="ai_matching_context"
+                    value={formData.ai_matching_context}
+                    onChange={(e) => setFormData({...formData, ai_matching_context: e.target.value})}
+                    rows={3}
+                    placeholder="Describe the ideal candidate for improved AI matching (e.g., 'Values leadership and community service in rural areas')"
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                    data-testid="textarea-ai-context"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    This helps the AI match students more accurately
+                  </p>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">
