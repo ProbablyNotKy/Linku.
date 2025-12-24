@@ -374,7 +374,16 @@ def match_with_profile(request: UserProfileMatchRequest):
     household_income_rm = INCOME_BRACKETS.get(profile.get("household_income"), None)
     
     try:
-        embedding_str = "[" + ",".join(map(str, profile["embedding"])) + "]"
+        # Handle embedding format - it may come as string or list from Supabase
+        embedding_data = profile["embedding"]
+        if isinstance(embedding_data, str):
+            # It's already a string, use it directly (may be "[0.1,0.2,...]" format)
+            embedding_str = embedding_data
+        elif isinstance(embedding_data, list):
+            # It's a list, convert to string format for RPC
+            embedding_str = "[" + ",".join(map(str, embedding_data)) + "]"
+        else:
+            raise HTTPException(status_code=500, detail="Invalid embedding format in profile")
         
         result = supabase.rpc(
             "match_scholarships",
