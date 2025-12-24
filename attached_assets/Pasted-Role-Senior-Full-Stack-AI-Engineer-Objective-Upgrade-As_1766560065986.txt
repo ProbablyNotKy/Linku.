@@ -1,0 +1,47 @@
+Role: Senior Full-Stack & AI Engineer Objective: Upgrade Ascendia to "High-Precision Mode" with Multi-URL Research, Enhanced Student Profiling, and a Human-in-the-Loop Admin Workflow.
+
+Task 1: Database & Schema Evolution (Supabase)
+
+Update scholarships and scholarship_drafts: Add study_areas (text[]), min_cgpa (float), min_spm_as (int), household_income_max (numeric), state_restriction (text), and is_bumiputera_only (boolean).
+
+Add "AI Hook" Column: Add ai_matching_context (text) to both tables. This is an admin-only field used to store hidden "match signals" for the AI.
+
+Update user_profiles: Add fields for cgpa (float), spm_as (int), household_income (numeric), state (text), and intended_study_areas (text[]).
+
+Task 2: Multi-URL "Researcher" Scraper (FastAPI)
+
+Refactor Scraper: Modify POST /api/admin/scrape to accept an Array of URLs.
+
+Contextual Extraction: Fetch all URLs, combine their text, and use OpenAI Structured Outputs to extract data.
+
+The "Hallucination Guard":
+
+If a requirement (like CGPA) isn't found, set it to null.
+
+If no study area is found, set it to ['General'].
+
+Never guess numbers.
+
+AI Context Generation: Instruct the AI to summarize the "ideal candidate profile" into the ai_matching_context field (e.g., "Values leadership and community service in rural areas").
+
+Task 3: Human-in-the-Loop Admin UI (React)
+
+Research Hub: Allow inputting multiple URLs in the "Discovery" tab.
+
+The "Edit-Before-Approve" Flow:
+
+When a draft appears, add an "Edit" button.
+
+Clicking "Edit" opens a Modal with a form to manually fix any AI mistakes (e.g., correcting the deadline or refining study areas).
+
+Approval: The "Approve" button only moves the draft to the live scholarships table after any desired edits are saved.
+
+Task 4: Precision Magic Match Logic
+
+Hybrid Matcher: Update the matching algorithm to use Hard Filters first:
+
+If user.cgpa < scholarship.min_cgpa OR user.state != scholarship.state_restriction (if restricted), set Match Score to 0 and mark as "Ineligible."
+
+Semantic Boost: Calculate the final Match % by comparing the student's profile against the description PLUS the hidden ai_matching_context.
+
+Technical Note: Use standard Malaysian categories for Study Areas (STEM, Health Sciences, Business, etc.) and States. Ensure the UI matches the current theme.
