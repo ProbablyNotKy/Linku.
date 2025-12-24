@@ -249,5 +249,61 @@ export async function registerRoutes(
     }
   });
 
+  // User Profile endpoints
+  app.post("/api/profiles", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/profiles/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to create profile" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error creating profile:", error);
+      res.status(500).json({ error: "Failed to create profile" });
+    }
+  });
+
+  app.get("/api/profiles/:id", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/profiles/${req.params.id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          return res.status(404).json({ error: "Profile not found" });
+        }
+        throw new Error(`FastAPI error: ${response.status}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  app.post("/api/profiles/match", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/profiles/match`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to match scholarships" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error matching scholarships with profile:", error);
+      res.status(500).json({ error: "Failed to match scholarships" });
+    }
+  });
+
   return httpServer;
 }
