@@ -530,22 +530,30 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
             except (ValueError, TypeError):
                 income_max = None
         
-        def clean_string(val):
-            if val is None or (isinstance(val, str) and not val.strip()):
+        def clean_value(val):
+            if val is None:
                 return None
+            if isinstance(val, str):
+                stripped = val.strip().lower()
+                if not stripped or stripped == "null" or stripped == "none" or stripped == "n/a":
+                    return None
+                return val.strip()
             return val
         
         draft_data = {
             "title": scholarship.get("title"),
-            "provider": clean_string(scholarship.get("provider")),
-            "amount": clean_string(scholarship.get("amount")),
-            "deadline": clean_string(scholarship.get("deadline")),
-            "education_level": clean_string(scholarship.get("education_level")),
+            "provider": clean_value(scholarship.get("provider")),
+            "amount": clean_value(scholarship.get("amount")),
+            "education_level": clean_value(scholarship.get("education_level")),
             "url": primary_url,
-            "description": clean_string(scholarship.get("description")),
-            "source_quote": clean_string(scholarship.get("source_quote")),
+            "description": clean_value(scholarship.get("description")),
+            "source_quote": clean_value(scholarship.get("source_quote")),
             "status": "pending"
         }
+        
+        deadline = clean_value(scholarship.get("deadline"))
+        if deadline:
+            draft_data["deadline"] = deadline
         
         optional_fields = {
             "study_areas": study_areas,
@@ -554,7 +562,7 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
             "household_income_max": income_max,
             "state_restriction": state,
             "is_bumiputera_only": bool(scholarship.get("is_bumiputera_only", False)),
-            "ai_matching_context": clean_string(scholarship.get("ai_matching_context"))
+            "ai_matching_context": clean_value(scholarship.get("ai_matching_context"))
         }
         
         for key, val in optional_fields.items():
