@@ -1,0 +1,43 @@
+Role: Senior Full-Stack Developer & AI Data Engineer. Objective: Upgrade Ascendia with a "Universal English Proficiency" system that handles MUET, IELTS, and SPM English 1119/CEFR equivalencies.
+
+1. Database Schema & Admin Integration (Supabase)
+
+Update Tables: Add min_muet (float), min_ielts (float), and min_spm_english (text) to both scholarships and scholarship_drafts.
+
+Admin Discovery Agent: Update the scraper logic. It must search for keywords like "MUET Band," "IELTS score," or "SPM English" and extract them. If it finds "MUET Band 4," it should set min_muet = 4.0.
+
+Admin Edit UI: Add a "Language Requirements" section to the scholarship edit modal with these three inputs.
+
+2. The "English Equivalence Engine" (FastAPI)
+
+Implementation Logic: Create a backend utility calculate_cefr_level(muet, ielts, spm_grade) that maps all inputs to a 1–9 "Universal Scale" based on the CEFR standard.
+
+Mapping Key:
+
+IELTS 7.0+ / MUET Band 5+ / SPM A+ = Level 8-9 (C1/C2)
+
+IELTS 6.0-6.5 / MUET Band 4.5 / SPM A- = Level 7 (B2 High)
+
+IELTS 5.5 / MUET Band 4.0 / SPM B+ = Level 6 (B2 Low)
+
+Matching Math: When checking eligibility:
+
+If the user meets ANY of the specific requirements (e.g., they have the MUET Band required), they pass.
+
+If the user has a different test (e.g., they have IELTS but the scholarship asks for MUET), use the calculate_cefr_level to check if their IELTS "Universal Level" is equal to or higher than the required MUET's "Universal Level."
+
+3. User Onboarding & Profile (React)
+
+Step 1 (Academics): Replace the single English grade input with a "Proficiency Selection."
+
+UX Flow: Ask "Which English test results do you have?" (Multi-select: SPM, MUET, IELTS).
+
+Conditional Inputs: Only show the specific score inputs for the tests they select.
+
+Store Data: Save these specific scores to the user_profiles table.
+
+4. Safety & Edge-Case Handling:
+
+"No Result Yet": If a user hasn't taken a test, do not automatically disqualify them unless the ai_matching_context or a "Strict" flag indicates it's a mandatory prerequisite.
+
+Hallucination Prevention: The scraper should set these to null if not found. If null, the scholarship is "Open" to all English levels.
