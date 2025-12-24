@@ -2,7 +2,10 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
+import json
+import httpx
 from openai import OpenAI
+from markdownify import markdownify as md
 
 from supabase_client import supabase
 from schemas import (
@@ -14,7 +17,12 @@ from schemas import (
     MatchRequest,
     ChatRequest,
     ChatResponse,
-    VectorizeResponse
+    VectorizeResponse,
+    ScrapeRequest,
+    ScrapeResponse,
+    DraftResponse,
+    PublishResponse,
+    ScholarshipList
 )
 
 app = FastAPI(title="Ascendia API", description="Malaysian Scholarship Discovery Platform")
@@ -328,3 +336,181 @@ def chat_with_coach(request: ChatRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get coach response: {str(e)}")
+
+
+SCRAPER_SYSTEM_PROMPT = """You are a scholarship data extraction expert. Extract scholarship information from the provided webpage content.
+
+RULES:
+1. If multiple distinct scholarships exist on the page, extract EACH separately
+2. If information is missing or unclear, use null - NEVER hallucinate or guess
+3. For each piece of data, include a source_quote - the exact sentence or phrase from the text that proves this data
+4. Deadline should be in YYYY-MM-DD format if possible, otherwise use the exact text
+5. Amount should include currency (RM, USD, etc.)
+6. education_level should be one of: SPM, STPM, Diploma, Undergraduate, Postgraduate, PhD, or the exact text if different
+
+Focus on extracting:
+- title: The scholarship name
+- provider: The organization offering it
+- amount: Monetary value or coverage description
+- deadline: Application deadline
+- education_level: Required/target education level
+- description: Brief description of the scholarship
+- source_quote: The specific text from the page that confirms this scholarship exists"""
+
+
+@app.post("/admin/scrape", response_model=ScrapeResponse)
+async def scrape_scholarship_url(request: ScrapeRequest):
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            response = await client.get(request.url, headers=headers, follow_redirects=True)
+            
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Page not found (404)")
+            elif response.status_code == 403:
+                raise HTTPException(status_code=403, detail="Access forbidden (403) - website may be blocking scrapers")
+            elif response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=f"Failed to fetch URL: HTTP {response.status_code}")
+            
+            html_content = response.text
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=408, detail="Request timed out - the website took too long to respond")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch URL: {str(e)}")
+    
+    markdown_content = md(html_content, heading_style="ATX", strip=['script', 'style', 'nav', 'footer'])
+    markdown_content = markdown_content[:15000]
+    
+    try:
+        extraction_response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SCRAPER_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Extract scholarship information from this webpage:\n\nURL: {request.url}\n\nContent:\n{markdown_content}"}
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=2000,
+            temperature=0.1
+        )
+        
+        result_text = extraction_response.choices[0].message.content
+        result_data = json.loads(result_text)
+        
+        scholarships = result_data.get("scholarships", [result_data] if "title" in result_data else [])
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI extraction failed: {str(e)}")
+    
+    drafts_created = 0
+    for scholarship in scholarships:
+        if not scholarship.get("title"):
+            continue
+            
+        draft_data = {
+            "title": scholarship.get("title"),
+            "provider": scholarship.get("provider"),
+            "amount": scholarship.get("amount"),
+            "deadline": scholarship.get("deadline"),
+            "education_level": scholarship.get("education_level"),
+            "url": request.url,
+            "description": scholarship.get("description"),
+            "source_quote": scholarship.get("source_quote"),
+            "status": "pending"
+        }
+        
+        try:
+            supabase.table("scholarship_drafts").insert(draft_data).execute()
+            drafts_created += 1
+        except Exception as e:
+            print(f"Failed to insert draft: {e}")
+    
+    if drafts_created == 0:
+        return ScrapeResponse(drafts_created=0, message="No scholarships found on this page")
+    
+    return ScrapeResponse(
+        drafts_created=drafts_created,
+        message=f"Successfully extracted {drafts_created} scholarship(s) for review"
+    )
+
+
+@app.get("/admin/drafts", response_model=List[DraftResponse])
+def list_drafts(status: Optional[str] = Query("pending", description="Filter by status: pending, approved, rejected")):
+    try:
+        q = supabase.table("scholarship_drafts").select("*")
+        if status:
+            q = q.eq("status", status)
+        q = q.order("id", desc=True)
+        
+        result = q.execute()
+        return result.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch drafts: {str(e)}")
+
+
+@app.post("/admin/drafts/{draft_id}/publish", response_model=PublishResponse)
+def publish_draft(draft_id: int):
+    try:
+        draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
+        
+        if not draft_result.data:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        
+        draft = draft_result.data[0]
+        
+        if draft["status"] != "pending":
+            raise HTTPException(status_code=400, detail=f"Draft is already {draft['status']}")
+        
+        scholarship_data = {
+            "title": draft["title"] or "Untitled Scholarship",
+            "provider": draft["provider"] or "Unknown Provider",
+            "amount": draft["amount"] or "Contact provider",
+            "deadline": draft["deadline"] or "2025-12-31",
+            "education_level": draft["education_level"] or "Various",
+            "url": draft["url"],
+            "tags": []
+        }
+        
+        scholarship_result = supabase.table("scholarships").insert(scholarship_data).execute()
+        
+        if not scholarship_result.data:
+            raise HTTPException(status_code=500, detail="Failed to create scholarship")
+        
+        new_scholarship = scholarship_result.data[0]
+        scholarship_id = new_scholarship["id"]
+        
+        try:
+            text = create_scholarship_text(new_scholarship)
+            embedding = generate_embedding(text)
+            supabase.table("scholarships").update({"embedding": embedding}).eq("id", scholarship_id).execute()
+        except Exception as embed_error:
+            print(f"Warning: Failed to generate embedding: {embed_error}")
+        
+        supabase.table("scholarship_drafts").update({"status": "approved"}).eq("id", draft_id).execute()
+        
+        return PublishResponse(
+            scholarship_id=scholarship_id,
+            message="Draft published successfully and added to Magic Match"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to publish draft: {str(e)}")
+
+
+@app.delete("/admin/drafts/{draft_id}")
+def reject_draft(draft_id: int):
+    try:
+        draft_result = supabase.table("scholarship_drafts").select("id").eq("id", draft_id).execute()
+        
+        if not draft_result.data:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        
+        supabase.table("scholarship_drafts").update({"status": "rejected"}).eq("id", draft_id).execute()
+        
+        return {"message": "Draft rejected successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reject draft: {str(e)}")

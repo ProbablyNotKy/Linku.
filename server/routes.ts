@@ -177,5 +177,77 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/scrape", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/admin/scrape`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to scrape URL" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error scraping URL:", error);
+      res.status(500).json({ error: "Failed to scrape URL" });
+    }
+  });
+
+  app.get("/api/admin/drafts", async (req, res) => {
+    try {
+      const params = new URLSearchParams();
+      if (req.query.status) params.append("status", req.query.status as string);
+      const queryString = params.toString();
+      const url = `${FASTAPI_URL}/admin/drafts${queryString ? `?${queryString}` : ""}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`FastAPI error: ${response.status}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+      res.status(500).json({ error: "Failed to fetch drafts" });
+    }
+  });
+
+  app.post("/api/admin/drafts/:id/publish", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to publish draft" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error publishing draft:", error);
+      res.status(500).json({ error: "Failed to publish draft" });
+    }
+  });
+
+  app.delete("/api/admin/drafts/:id", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to reject draft" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error rejecting draft:", error);
+      res.status(500).json({ error: "Failed to reject draft" });
+    }
+  });
+
   return httpServer;
 }

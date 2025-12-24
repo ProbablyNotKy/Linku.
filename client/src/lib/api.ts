@@ -163,3 +163,72 @@ export async function chatWithCoach(message: string, history?: ChatMessage[]): P
   }
   return response.json();
 }
+
+export interface ScrapeResponse {
+  drafts_created: number;
+  message: string;
+}
+
+export async function scrapeUrl(url: string): Promise<ScrapeResponse> {
+  const response = await fetch("/api/admin/scrape", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || `Failed to scrape URL: ${response.status}`);
+  }
+  return response.json();
+}
+
+export interface Draft {
+  id: number;
+  title: string | null;
+  provider: string | null;
+  amount: string | null;
+  deadline: string | null;
+  education_level: string | null;
+  url: string | null;
+  description: string | null;
+  source_quote: string | null;
+  status: string;
+}
+
+export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> {
+  const response = await fetch(`/api/admin/drafts?status=${status}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch drafts: ${response.status}`);
+  }
+  return response.json();
+}
+
+export interface PublishResponse {
+  scholarship_id: number;
+  message: string;
+}
+
+export async function publishDraft(id: number): Promise<PublishResponse> {
+  const response = await fetch(`/api/admin/drafts/${id}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || `Failed to publish draft: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function rejectDraft(id: number): Promise<void> {
+  const response = await fetch(`/api/admin/drafts/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || `Failed to reject draft: ${response.status}`);
+  }
+}

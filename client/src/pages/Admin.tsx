@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { 
   Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft, 
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
-  X
+  X, Globe, Eye, ChevronDown, ChevronUp, Bot
 } from "lucide-react";
 import { Scholarship } from "@shared/schema";
 import { 
@@ -11,7 +11,12 @@ import {
   createScholarship, 
   updateScholarship, 
   deleteScholarship,
-  ScholarshipCreate 
+  ScholarshipCreate,
+  scrapeUrl,
+  fetchDrafts,
+  publishDraft,
+  rejectDraft,
+  Draft
 } from "@/lib/api";
 
 const ADMIN_KEY = "Ascendia2024";
@@ -54,6 +59,78 @@ export default function Admin() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<"scholarships" | "discovery">("scholarships");
+  const [scrapeUrl_, setScrapeUrl] = useState("");
+  const [isScrapingUrl, setIsScrapingUrl] = useState(false);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
+  const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
+  const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+
+  const loadDrafts = async () => {
+    setIsLoadingDrafts(true);
+    try {
+      const data = await fetchDrafts("pending");
+      setDrafts(data);
+    } catch (err) {
+      console.error("Failed to load drafts:", err);
+      setErrorMessage("Failed to load drafts");
+    } finally {
+      setIsLoadingDrafts(false);
+    }
+  };
+
+  const handleScrape = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scrapeUrl_.trim()) return;
+    
+    setIsScrapingUrl(true);
+    setSuccessMessage("");
+    setErrorMessage("");
+    
+    try {
+      const result = await scrapeUrl(scrapeUrl_);
+      setSuccessMessage(result.message);
+      setScrapeUrl("");
+      await loadDrafts();
+    } catch (err) {
+      console.error("Failed to scrape URL:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to scrape URL");
+    } finally {
+      setIsScrapingUrl(false);
+    }
+  };
+
+  const handlePublish = async (id: number) => {
+    setPublishingId(id);
+    try {
+      const result = await publishDraft(id);
+      setSuccessMessage(result.message);
+      await loadDrafts();
+      await loadScholarships();
+    } catch (err) {
+      console.error("Failed to publish draft:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to publish draft");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handleReject = async (id: number) => {
+    setRejectingId(id);
+    try {
+      await rejectDraft(id);
+      setSuccessMessage("Draft rejected successfully");
+      await loadDrafts();
+    } catch (err) {
+      console.error("Failed to reject draft:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to reject draft");
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
   const loadScholarships = async () => {
     setIsLoading(true);
     try {
@@ -70,6 +147,7 @@ export default function Admin() {
   useEffect(() => {
     if (isAuthenticated) {
       loadScholarships();
+      loadDrafts();
     }
   }, [isAuthenticated]);
 
@@ -315,6 +393,40 @@ export default function Admin() {
           </div>
         )}
 
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab("scholarships")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "scholarships"
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+            }`}
+            data-testid="tab-scholarships"
+          >
+            <GraduationCap className="w-4 h-4" />
+            Scholarships
+          </button>
+          <button
+            onClick={() => setActiveTab("discovery")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "discovery"
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+            }`}
+            data-testid="tab-discovery"
+          >
+            <Bot className="w-4 h-4" />
+            Discovery Agent
+            {drafts.length > 0 && (
+              <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {drafts.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === "scholarships" && (
+        <>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-center gap-3">
@@ -474,6 +586,174 @@ export default function Admin() {
             </div>
           )}
         </div>
+        </>
+        )}
+
+        {activeTab === "discovery" && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-2">
+                  <Bot className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Discovery Agent</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Scan websites to discover new scholarships</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleScrape} className="flex gap-3">
+                <div className="relative flex-1">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="url"
+                    value={scrapeUrl_}
+                    onChange={(e) => setScrapeUrl(e.target.value)}
+                    placeholder="https://www.example.com/scholarships"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-scrape-url"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isScrapingUrl || !scrapeUrl_.trim()}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+                  data-testid="button-scrape"
+                >
+                  {isScrapingUrl ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Scan Website
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Pending Drafts ({drafts.length})
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Review AI-extracted scholarships before publishing
+                </p>
+              </div>
+
+              {isLoadingDrafts ? (
+                <div className="p-8 text-center">
+                  <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400">Loading drafts...</p>
+                </div>
+              ) : drafts.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  No pending drafts. Scan a website to discover scholarships.
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {drafts.map((draft) => (
+                    <div key={draft.id} className="p-4" data-testid={`draft-${draft.id}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                              {draft.title || "Untitled Scholarship"}
+                            </h4>
+                            <button
+                              onClick={() => setExpandedDraftId(expandedDraftId === draft.id ? null : draft.id)}
+                              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                              data-testid={`button-expand-${draft.id}`}
+                            >
+                              {expandedDraftId === draft.id ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                            {draft.provider && <span>Provider: {draft.provider}</span>}
+                            {draft.amount && <span className="text-green-600 dark:text-green-400">{draft.amount}</span>}
+                            {draft.deadline && <span>Deadline: {draft.deadline}</span>}
+                            {draft.education_level && <span>Level: {draft.education_level}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handlePublish(draft.id)}
+                            disabled={publishingId === draft.id}
+                            className="flex items-center gap-1 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm px-3 py-1.5 rounded-lg transition-colors"
+                            data-testid={`button-approve-${draft.id}`}
+                          >
+                            {publishingId === draft.id ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4" />
+                            )}
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(draft.id)}
+                            disabled={rejectingId === draft.id}
+                            className="flex items-center gap-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm px-3 py-1.5 rounded-lg transition-colors"
+                            data-testid={`button-reject-${draft.id}`}
+                          >
+                            {rejectingId === draft.id ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <X className="w-4 h-4" />
+                            )}
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+
+                      {expandedDraftId === draft.id && (
+                        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
+                          {draft.description && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Description</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{draft.description}</p>
+                            </div>
+                          )}
+                          {draft.source_quote && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1 flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                Source Quote (for verification)
+                              </p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 italic bg-amber-50 dark:bg-amber-900/20 p-2 rounded border-l-2 border-amber-400">
+                                "{draft.source_quote}"
+                              </p>
+                            </div>
+                          )}
+                          {draft.url && (
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Source URL</p>
+                              <a 
+                                href={draft.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline break-all"
+                              >
+                                {draft.url}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {showForm && (
