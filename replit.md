@@ -64,14 +64,58 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE scholarships (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
-  provider TEXT NOT NULL,
-  amount TEXT NOT NULL,
-  deadline TEXT NOT NULL,
-  education_level TEXT NOT NULL,
+  provider TEXT,
+  amount TEXT,
+  deadline TEXT,
+  education_level TEXT,
   url TEXT,
   tags TEXT[],
-  embedding vector(1536)  -- For AI matching
+  embedding vector(1536),  -- For AI matching
+  -- High-Precision Mode fields
+  study_areas TEXT[],              -- e.g., ["STEM", "Business", "Law"]
+  min_cgpa REAL,                   -- Minimum CGPA (0-4 scale)
+  min_spm_as INTEGER,              -- Minimum SPM A's required
+  household_income_max REAL,       -- Max household income in RM
+  state_restriction TEXT,          -- Malaysian state restriction
+  is_bumiputera_only BOOLEAN DEFAULT FALSE,
+  ai_matching_context TEXT         -- Hidden context for AI matching
 );
+
+-- Scholarship Drafts for Discovery Agent
+CREATE TABLE scholarship_drafts (
+  id SERIAL PRIMARY KEY,
+  title TEXT,
+  provider TEXT,
+  amount TEXT,
+  deadline TEXT,
+  education_level TEXT,
+  url TEXT,
+  description TEXT,
+  source_quote TEXT,               -- For verification
+  status TEXT DEFAULT 'pending',   -- pending, approved, rejected
+  study_areas TEXT[],
+  min_cgpa REAL,
+  min_spm_as INTEGER,
+  household_income_max REAL,
+  state_restriction TEXT,
+  is_bumiputera_only BOOLEAN DEFAULT FALSE,
+  ai_matching_context TEXT
+);
+```
+
+### Malaysian Constants
+```typescript
+// 16 Malaysian States
+MALAYSIAN_STATES = ["Johor", "Kedah", "Kelantan", "Melaka", "Negeri Sembilan", 
+  "Pahang", "Perak", "Perlis", "Pulau Pinang", "Sabah", "Sarawak", 
+  "Selangor", "Terengganu", "Wilayah Persekutuan Kuala Lumpur", 
+  "Wilayah Persekutuan Labuan", "Wilayah Persekutuan Putrajaya"]
+
+// 16 Study Areas
+STUDY_AREAS = ["STEM", "Engineering", "Medicine & Health Sciences", 
+  "Business", "Accounting", "Law", "Arts & Humanities", "Social Sciences",
+  "Education", "IT & Computer Science", "Architecture", "Agriculture",
+  "Environmental Studies", "Islamic Studies", "Media & Communications", "General"]
 ```
 
 ### Required Supabase RPC Function
@@ -125,6 +169,14 @@ interface Scholarship {
   education_level: string;
   url?: string;
   tags?: string[];
+  // High-Precision Mode fields
+  study_areas?: string[];
+  min_cgpa?: number | null;
+  min_spm_as?: number | null;
+  household_income_max?: number | null;
+  state_restriction?: string | null;
+  is_bumiputera_only?: boolean;
+  ai_matching_context?: string | null;
 }
 ```
 
@@ -142,6 +194,13 @@ interface Scholarship {
 - `POST /scholarships/match` - Find top matching scholarships using cosine similarity
 - `POST /scholarships/vectorize` - Batch vectorize all scholarships without embeddings
 - `POST /chat/coach` - Socratic Mentor chat (GPT-4o with STAR method guidance)
+
+### Admin Discovery Agent Endpoints
+- `POST /admin/scrape` - Multi-URL researcher: accepts array of URLs, extracts scholarship data with hallucination guards
+- `GET /admin/drafts` - List pending drafts for review
+- `PUT /admin/drafts/{id}` - Update draft before publishing
+- `POST /admin/drafts/{id}/publish` - Approve and publish draft to scholarships
+- `POST /admin/drafts/{id}/reject` - Reject draft
 
 ## Running the Application
 
@@ -200,6 +259,32 @@ Floating chat button on Home page:
 - **Full CRUD**: Create, Read, Update, Delete scholarships via Admin dashboard
 - **AI Matching**: Profile-based scholarship recommendations using vector similarity
 - **Socratic Coach**: AI-guided application writing assistance
+
+## High-Precision Mode (Phase 3)
+
+### Discovery Agent
+Multi-URL researcher in Admin dashboard:
+1. Enter primary URL + additional pages (eligibility, FAQ, etc.)
+2. AI extracts scholarship data with hallucination guards:
+   - Returns null for missing data (never guesses)
+   - Defaults to ["General"] for unspecified study areas
+   - Includes source_quote for verification
+3. Admin reviews/edits drafts before publishing
+4. Full edit modal for all eligibility fields
+
+### Malaysian Eligibility Filtering
+Precision matching with hard filters:
+- **CGPA**: Minimum cumulative grade point (0-4 scale)
+- **SPM A's**: Minimum A's required in SPM exams (0-10)
+- **Household Income**: Maximum monthly income in RM
+- **State Restriction**: Limited to specific Malaysian states
+- **Bumiputera Only**: Exclusive to Bumiputera students
+
+### AI Matching Context
+Hidden field for improved semantic matching:
+- Describes ideal candidate profile
+- Example: "Values leadership and community service in rural areas"
+- Boosts match scores for compatible students
 
 ## Setup Instructions
 
