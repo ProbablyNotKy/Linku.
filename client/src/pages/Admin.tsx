@@ -3,20 +3,22 @@ import { Link } from "wouter";
 import { 
   Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft, 
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
-  X, Globe, Eye, ChevronDown, ChevronUp, Bot
+  X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon
 } from "lucide-react";
-import { Scholarship } from "@shared/schema";
+import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS } from "@shared/schema";
 import { 
   fetchScholarships, 
   createScholarship, 
   updateScholarship, 
   deleteScholarship,
   ScholarshipCreate,
-  scrapeUrl,
+  scrapeUrls,
   fetchDrafts,
   publishDraft,
   rejectDraft,
-  Draft
+  updateDraft,
+  Draft,
+  DraftUpdate
 } from "@/lib/api";
 
 const ADMIN_KEY = "Ascendia2024";
@@ -60,13 +62,17 @@ export default function Admin() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"scholarships" | "discovery">("scholarships");
-  const [scrapeUrl_, setScrapeUrl] = useState("");
+  const [scrapeUrlList, setScrapeUrlList] = useState<string[]>([""]);
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [expandedDraftId, setExpandedDraftId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
+  
+  const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
+  const [draftFormData, setDraftFormData] = useState<DraftUpdate>({});
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const loadDrafts = async () => {
     setIsLoadingDrafts(true);
@@ -81,24 +87,83 @@ export default function Admin() {
     }
   };
 
+  const addUrlField = () => {
+    setScrapeUrlList([...scrapeUrlList, ""]);
+  };
+
+  const removeUrlField = (index: number) => {
+    if (scrapeUrlList.length > 1) {
+      setScrapeUrlList(scrapeUrlList.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateUrlField = (index: number, value: string) => {
+    const updated = [...scrapeUrlList];
+    updated[index] = value;
+    setScrapeUrlList(updated);
+  };
+
   const handleScrape = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!scrapeUrl_.trim()) return;
+    const validUrls = scrapeUrlList.filter(url => url.trim());
+    if (validUrls.length === 0) return;
     
     setIsScrapingUrl(true);
     setSuccessMessage("");
     setErrorMessage("");
     
     try {
-      const result = await scrapeUrl(scrapeUrl_);
+      const result = await scrapeUrls(validUrls);
       setSuccessMessage(result.message);
-      setScrapeUrl("");
+      setScrapeUrlList([""]);
       await loadDrafts();
     } catch (err) {
-      console.error("Failed to scrape URL:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to scrape URL");
+      console.error("Failed to scrape URLs:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to scrape URLs");
     } finally {
       setIsScrapingUrl(false);
+    }
+  };
+
+  const openEditDraft = (draft: Draft) => {
+    setEditingDraft(draft);
+    setDraftFormData({
+      title: draft.title || "",
+      provider: draft.provider || "",
+      amount: draft.amount || "",
+      deadline: draft.deadline || "",
+      education_level: draft.education_level || "",
+      url: draft.url || "",
+      description: draft.description || "",
+      study_areas: draft.study_areas || ["General"],
+      min_cgpa: draft.min_cgpa,
+      min_spm_as: draft.min_spm_as,
+      household_income_max: draft.household_income_max,
+      state_restriction: draft.state_restriction,
+      is_bumiputera_only: draft.is_bumiputera_only || false,
+      ai_matching_context: draft.ai_matching_context || ""
+    });
+  };
+
+  const closeEditDraft = () => {
+    setEditingDraft(null);
+    setDraftFormData({});
+  };
+
+  const handleSaveDraft = async () => {
+    if (!editingDraft) return;
+    
+    setIsSavingDraft(true);
+    try {
+      await updateDraft(editingDraft.id, draftFormData);
+      setSuccessMessage("Draft updated successfully");
+      closeEditDraft();
+      await loadDrafts();
+    } catch (err) {
+      console.error("Failed to save draft:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to save draft");
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -598,40 +663,69 @@ export default function Admin() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Discovery Agent</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Scan websites to discover new scholarships</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Add multiple URLs to research scholarship details across pages</p>
                 </div>
               </div>
 
-              <form onSubmit={handleScrape} className="flex gap-3">
-                <div className="relative flex-1">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="url"
-                    value={scrapeUrl_}
-                    onChange={(e) => setScrapeUrl(e.target.value)}
-                    placeholder="https://www.example.com/scholarships"
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    data-testid="input-scrape-url"
-                  />
+              <form onSubmit={handleScrape} className="space-y-3">
+                {scrapeUrlList.map((url, index) => (
+                  <div key={index} className="flex gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="url"
+                        value={url}
+                        onChange={(e) => updateUrlField(index, e.target.value)}
+                        placeholder={index === 0 ? "Main scholarship page URL" : "Additional page (eligibility, FAQ, etc.)"}
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        data-testid={`input-scrape-url-${index}`}
+                      />
+                    </div>
+                    {scrapeUrlList.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeUrlField(index)}
+                        className="p-2.5 text-gray-400 hover:text-red-500 rounded-lg"
+                        data-testid={`button-remove-url-${index}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={addUrlField}
+                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm"
+                    data-testid="button-add-url"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add another URL
+                  </button>
+                  
+                  <div className="flex-1" />
+                  
+                  <button
+                    type="submit"
+                    disabled={isScrapingUrl || scrapeUrlList.every(u => !u.trim())}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+                    data-testid="button-scrape"
+                  >
+                    {isScrapingUrl ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Researching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Research Scholarship
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isScrapingUrl || !scrapeUrl_.trim()}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-2.5 rounded-lg transition-colors whitespace-nowrap"
-                  data-testid="button-scrape"
-                >
-                  {isScrapingUrl ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Scanning...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4" />
-                      Scan Website
-                    </>
-                  )}
-                </button>
               </form>
             </div>
 
@@ -682,8 +776,33 @@ export default function Admin() {
                             {draft.deadline && <span>Deadline: {draft.deadline}</span>}
                             {draft.education_level && <span>Level: {draft.education_level}</span>}
                           </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {draft.study_areas?.map((area, i) => (
+                              <span key={i} className="text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded">
+                                {area}
+                              </span>
+                            ))}
+                            {draft.min_cgpa && (
+                              <span className="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded">
+                                Min CGPA: {draft.min_cgpa}
+                              </span>
+                            )}
+                            {draft.is_bumiputera_only && (
+                              <span className="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded">
+                                Bumiputera Only
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditDraft(draft)}
+                            className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                            data-testid={`button-edit-draft-${draft.id}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Edit
+                          </button>
                           <button
                             onClick={() => handlePublish(draft.id)}
                             disabled={publishingId === draft.id}
@@ -974,6 +1093,238 @@ export default function Admin() {
                   "Delete"
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingDraft && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Edit Draft Before Publishing
+              </h3>
+              <button
+                onClick={closeEditDraft}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg"
+                data-testid="button-close-edit-draft"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={draftFormData.title || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, title: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-draft-title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
+                  <input
+                    type="text"
+                    value={draftFormData.provider || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, provider: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-draft-provider"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
+                  <input
+                    type="text"
+                    value={draftFormData.amount || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, amount: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-draft-amount"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deadline</label>
+                  <input
+                    type="date"
+                    value={draftFormData.deadline || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, deadline: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-draft-deadline"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Education Level</label>
+                  <select
+                    value={draftFormData.education_level || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, education_level: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="select-draft-education"
+                  >
+                    <option value="">Select level</option>
+                    {EDUCATION_LEVELS.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL</label>
+                  <input
+                    type="url"
+                    value={draftFormData.url || ""}
+                    onChange={(e) => setDraftFormData({...draftFormData, url: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-draft-url"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Eligibility Requirements</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min CGPA</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="4"
+                      value={draftFormData.min_cgpa ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, min_cgpa: e.target.value ? parseFloat(e.target.value) : null})}
+                      placeholder="e.g. 3.5"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-draft-cgpa"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Min SPM A's</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={draftFormData.min_spm_as ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, min_spm_as: e.target.value ? parseInt(e.target.value) : null})}
+                      placeholder="e.g. 5"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-draft-spm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Household Income (RM)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={draftFormData.household_income_max ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, household_income_max: e.target.value ? parseFloat(e.target.value) : null})}
+                      placeholder="e.g. 5000"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-draft-income"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">State Restriction</label>
+                    <select
+                      value={draftFormData.state_restriction || ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, state_restriction: e.target.value || null})}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="select-draft-state"
+                    >
+                      <option value="">Nationwide (no restriction)</option>
+                      {MALAYSIAN_STATES.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-3 pt-6">
+                    <input
+                      type="checkbox"
+                      id="bumiputera-only"
+                      checked={draftFormData.is_bumiputera_only || false}
+                      onChange={(e) => setDraftFormData({...draftFormData, is_bumiputera_only: e.target.checked})}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      data-testid="checkbox-draft-bumiputera"
+                    />
+                    <label htmlFor="bumiputera-only" className="text-sm text-gray-700 dark:text-gray-300">
+                      Bumiputera Only
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Study Areas</label>
+                <div className="flex flex-wrap gap-2">
+                  {STUDY_AREAS.map(area => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => {
+                        const current = draftFormData.study_areas || [];
+                        if (current.includes(area)) {
+                          setDraftFormData({...draftFormData, study_areas: current.filter(a => a !== area)});
+                        } else {
+                          setDraftFormData({...draftFormData, study_areas: [...current, area]});
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                        (draftFormData.study_areas || []).includes(area)
+                          ? "bg-indigo-600 text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                      }`}
+                      data-testid={`button-study-area-${area}`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  AI Matching Context (hidden from students)
+                </label>
+                <textarea
+                  value={draftFormData.ai_matching_context || ""}
+                  onChange={(e) => setDraftFormData({...draftFormData, ai_matching_context: e.target.value})}
+                  placeholder="Describe the ideal candidate profile for better AI matching (e.g., 'Values leadership and community service in rural areas')"
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  data-testid="textarea-draft-ai-context"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeEditDraft}
+                  className="flex-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-2.5 px-4 rounded-lg transition-colors"
+                  data-testid="button-cancel-edit-draft"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isSavingDraft}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  data-testid="button-save-draft"
+                >
+                  {isSavingDraft ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

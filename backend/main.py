@@ -21,8 +21,11 @@ from schemas import (
     ScrapeRequest,
     ScrapeResponse,
     DraftResponse,
+    DraftUpdateRequest,
     PublishResponse,
-    ScholarshipList
+    ScholarshipList,
+    MALAYSIAN_STATES,
+    STUDY_AREAS
 )
 
 app = FastAPI(title="Ascendia API", description="Malaysian Scholarship Discovery Platform")
@@ -74,9 +77,13 @@ def create_scholarship_text(scholarship: dict) -> str:
         scholarship.get("provider", ""),
         scholarship.get("education_level", ""),
         scholarship.get("amount", ""),
+        scholarship.get("description", ""),
+        scholarship.get("ai_matching_context", ""),
     ]
     if scholarship.get("tags"):
         parts.extend(scholarship["tags"])
+    if scholarship.get("study_areas"):
+        parts.extend(scholarship["study_areas"])
     return " ".join(filter(None, parts))
 
 
@@ -103,7 +110,10 @@ def seed_scholarships():
             "deadline": "2025-03-31",
             "education_level": "Undergraduate",
             "url": "https://www.yayasankhazanah.com.my/scholarship/",
-            "tags": ["full-ride", "overseas", "merit-based"]
+            "tags": ["full-ride", "overseas", "merit-based"],
+            "study_areas": ["STEM", "Business", "Law"],
+            "min_cgpa": 3.5,
+            "is_bumiputera_only": False
         },
         {
             "title": "Maybank Group Scholarship Programme",
@@ -112,7 +122,9 @@ def seed_scholarships():
             "deadline": "2025-04-15",
             "education_level": "Undergraduate",
             "url": "https://www.maybank.com/scholarship",
-            "tags": ["banking", "finance", "local"]
+            "tags": ["banking", "finance", "local"],
+            "study_areas": ["Business", "Accounting", "IT & Computer Science"],
+            "min_cgpa": 3.0
         },
         {
             "title": "JPA PIDN Scholarship",
@@ -121,7 +133,9 @@ def seed_scholarships():
             "deadline": "2025-05-01",
             "education_level": "Degree",
             "url": "https://www.jpa.gov.my/",
-            "tags": ["government", "full-coverage", "bonded"]
+            "tags": ["government", "full-coverage", "bonded"],
+            "study_areas": ["General"],
+            "is_bumiputera_only": True
         },
         {
             "title": "Shell Malaysia Scholarship",
@@ -130,7 +144,9 @@ def seed_scholarships():
             "deadline": "2025-02-28",
             "education_level": "Undergraduate",
             "url": "https://www.shell.com.my/careers/scholarships.html",
-            "tags": ["engineering", "oil-gas", "internship"]
+            "tags": ["engineering", "oil-gas", "internship"],
+            "study_areas": ["Engineering", "STEM"],
+            "min_cgpa": 3.2
         },
         {
             "title": "The Star Education Fund",
@@ -139,7 +155,8 @@ def seed_scholarships():
             "deadline": "2025-06-30",
             "education_level": "Diploma/Degree",
             "url": "https://www.thestar.com.my/education",
-            "tags": ["media", "journalism", "local"]
+            "tags": ["media", "journalism", "local"],
+            "study_areas": ["Arts & Humanities", "Social Sciences"]
         }
     ]
     
@@ -228,11 +245,22 @@ def delete_scholarship(scholarship_id: int):
 
 @app.post("/profile/sync", response_model=ProfileSyncResponse)
 def sync_profile(request: ProfileSyncRequest):
-    profile_text = request.bio
+    profile_parts = [request.bio]
+    
     if request.education_level:
-        profile_text += f" Education level: {request.education_level}."
+        profile_parts.append(f"Education level: {request.education_level}.")
     if request.field_of_study:
-        profile_text += f" Field of study: {request.field_of_study}."
+        profile_parts.append(f"Field of study: {request.field_of_study}.")
+    if request.intended_study_areas:
+        profile_parts.append(f"Interested in: {', '.join(request.intended_study_areas)}.")
+    if request.state:
+        profile_parts.append(f"From {request.state}, Malaysia.")
+    if request.cgpa:
+        profile_parts.append(f"CGPA: {request.cgpa}.")
+    if request.spm_as:
+        profile_parts.append(f"SPM A's: {request.spm_as}.")
+    
+    profile_text = " ".join(profile_parts)
     
     try:
         embedding = generate_embedding(profile_text)
@@ -253,7 +281,7 @@ def match_scholarships(request: MatchRequest):
             "match_scholarships",
             {
                 "query_embedding": embedding_str,
-                "match_count": request.limit
+                "match_count": request.limit * 3
             }
         ).execute()
         
@@ -262,6 +290,35 @@ def match_scholarships(request: MatchRequest):
         
         matches = []
         for row in result.data:
+            is_eligible = True
+            ineligibility_reasons = []
+            
+            if request.cgpa is not None and row.get("min_cgpa") is not None:
+                if request.cgpa < row["min_cgpa"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Requires minimum CGPA of {row['min_cgpa']}")
+            
+            if request.spm_as is not None and row.get("min_spm_as") is not None:
+                if request.spm_as < row["min_spm_as"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Requires minimum {row['min_spm_as']} A's in SPM")
+            
+            if request.household_income is not None and row.get("household_income_max") is not None:
+                if request.household_income > row["household_income_max"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Household income exceeds RM {row['household_income_max']:,.0f} limit")
+            
+            if row.get("state_restriction") and request.state:
+                if request.state != row["state_restriction"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Restricted to {row['state_restriction']} residents")
+            
+            if row.get("is_bumiputera_only") and request.is_bumiputera is False:
+                is_eligible = False
+                ineligibility_reasons.append("Restricted to Bumiputera applicants")
+            
+            similarity_score = row.get("similarity", 0) if is_eligible else 0
+            
             matches.append(ScholarshipMatchResponse(
                 id=row["id"],
                 title=row["title"],
@@ -271,10 +328,20 @@ def match_scholarships(request: MatchRequest):
                 education_level=row["education_level"],
                 url=row.get("url"),
                 tags=row.get("tags"),
-                similarity_score=row.get("similarity", 0)
+                study_areas=row.get("study_areas"),
+                min_cgpa=row.get("min_cgpa"),
+                min_spm_as=row.get("min_spm_as"),
+                household_income_max=row.get("household_income_max"),
+                state_restriction=row.get("state_restriction"),
+                is_bumiputera_only=row.get("is_bumiputera_only", False),
+                similarity_score=similarity_score,
+                is_eligible=is_eligible,
+                ineligibility_reasons=ineligibility_reasons if ineligibility_reasons else None
             ))
         
-        return matches
+        matches.sort(key=lambda x: (not x.is_eligible, -x.similarity_score))
+        
+        return matches[:request.limit]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to match scholarships: {str(e)}")
 
@@ -338,60 +405,76 @@ def chat_with_coach(request: ChatRequest):
         raise HTTPException(status_code=500, detail=f"Failed to get coach response: {str(e)}")
 
 
-SCRAPER_SYSTEM_PROMPT = """You are a scholarship data extraction expert. Extract scholarship information from the provided webpage content.
+SCRAPER_SYSTEM_PROMPT = f"""You are a scholarship data extraction expert for Malaysian scholarships. Extract scholarship information from the provided webpage content.
 
-RULES:
-1. If multiple distinct scholarships exist on the page, extract EACH separately
-2. If information is missing or unclear, use null - NEVER hallucinate or guess
-3. For each piece of data, include a source_quote - the exact sentence or phrase from the text that proves this data
-4. Deadline should be in YYYY-MM-DD format if possible, otherwise use the exact text
-5. Amount should include currency (RM, USD, etc.)
-6. education_level should be one of: SPM, STPM, Diploma, Undergraduate, Postgraduate, PhD, or the exact text if different
+CRITICAL RULES - HALLUCINATION PREVENTION:
+1. If information is NOT EXPLICITLY STATED in the text, set the field to null
+2. NEVER guess or infer numbers (CGPA, income limits, SPM grades)
+3. If no specific study area is mentioned, use ["General"]
+4. For each piece of data, include a source_quote - the exact phrase that proves this data
+5. If multiple distinct scholarships exist, extract EACH separately
 
-Focus on extracting:
-- title: The scholarship name
+FIELD EXTRACTION GUIDELINES:
+- title: The scholarship name (required)
 - provider: The organization offering it
-- amount: Monetary value or coverage description
-- deadline: Application deadline
-- education_level: Required/target education level
+- amount: Monetary value with currency (RM, USD, etc.) or coverage description
+- deadline: Application deadline in YYYY-MM-DD format if possible
+- education_level: One of SPM, STPM, Diploma, Undergraduate, Postgraduate, PhD
 - description: Brief description of the scholarship
-- source_quote: The specific text from the page that confirms this scholarship exists"""
+- source_quote: The specific text from the page that confirms this scholarship
+
+ELIGIBILITY FIELDS (set to null if not explicitly stated):
+- study_areas: Array from {STUDY_AREAS}. Use ["General"] if not specified
+- min_cgpa: Minimum CGPA requirement (float like 3.0, 3.5). NULL if not stated
+- min_spm_as: Minimum number of A's required in SPM (integer). NULL if not stated
+- household_income_max: Maximum household income in RM (number). NULL if not stated
+- state_restriction: If restricted to a specific state from {MALAYSIAN_STATES}. NULL if nationwide
+- is_bumiputera_only: true if explicitly for Bumiputera only, false otherwise
+
+AI MATCHING CONTEXT (IMPORTANT):
+- ai_matching_context: Write 1-2 sentences describing the IDEAL candidate profile based on the scholarship's values and preferences. Example: "Values leadership and community service in rural areas. Prefers candidates with entrepreneurial mindset."
+
+Remember: When in doubt, use null. Never fabricate requirements."""
 
 
 @app.post("/admin/scrape", response_model=ScrapeResponse)
-async def scrape_scholarship_url(request: ScrapeRequest):
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            response = await client.get(request.url, headers=headers, follow_redirects=True)
-            
-            if response.status_code == 404:
-                raise HTTPException(status_code=404, detail="Page not found (404)")
-            elif response.status_code == 403:
-                raise HTTPException(status_code=403, detail="Access forbidden (403) - website may be blocking scrapers")
-            elif response.status_code != 200:
-                raise HTTPException(status_code=response.status_code, detail=f"Failed to fetch URL: HTTP {response.status_code}")
-            
-            html_content = response.text
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=408, detail="Request timed out - the website took too long to respond")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch URL: {str(e)}")
+async def scrape_scholarship_urls(request: ScrapeRequest):
+    if not request.urls:
+        raise HTTPException(status_code=400, detail="At least one URL is required")
     
-    markdown_content = md(html_content, heading_style="ATX", strip=['script', 'style', 'nav', 'footer'])
-    markdown_content = markdown_content[:15000]
+    all_content = []
+    primary_url = request.urls[0]
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        for url in request.urls:
+            try:
+                response = await client.get(url, headers=headers, follow_redirects=True)
+                
+                if response.status_code == 200:
+                    html_content = response.text
+                    markdown_content = md(html_content, heading_style="ATX", strip=['script', 'style', 'nav', 'footer'])
+                    all_content.append(f"=== Content from {url} ===\n{markdown_content}")
+                else:
+                    all_content.append(f"=== Failed to fetch {url}: HTTP {response.status_code} ===")
+            except Exception as e:
+                all_content.append(f"=== Failed to fetch {url}: {str(e)} ===")
+    
+    combined_content = "\n\n".join(all_content)
+    combined_content = combined_content[:25000]
     
     try:
         extraction_response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": SCRAPER_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Extract scholarship information from this webpage:\n\nURL: {request.url}\n\nContent:\n{markdown_content}"}
+                {"role": "user", "content": f"Extract scholarship information from these webpages:\n\nPrimary URL: {primary_url}\n\nContent:\n{combined_content}"}
             ],
             response_format={"type": "json_object"},
-            max_tokens=2000,
+            max_tokens=3000,
             temperature=0.1
         )
         
@@ -407,17 +490,68 @@ async def scrape_scholarship_url(request: ScrapeRequest):
     for scholarship in scholarships:
         if not scholarship.get("title"):
             continue
+        
+        study_areas = scholarship.get("study_areas")
+        if not study_areas or len(study_areas) == 0:
+            study_areas = ["General"]
+        else:
+            study_areas = [area for area in study_areas if area in STUDY_AREAS]
+            if not study_areas:
+                study_areas = ["General"]
+        
+        state = scholarship.get("state_restriction")
+        if state and state not in MALAYSIAN_STATES:
+            state = None
+        
+        min_cgpa = scholarship.get("min_cgpa")
+        if min_cgpa is not None:
+            try:
+                min_cgpa = float(min_cgpa)
+                if min_cgpa < 0 or min_cgpa > 4:
+                    min_cgpa = None
+            except (ValueError, TypeError):
+                min_cgpa = None
+        
+        min_spm = scholarship.get("min_spm_as")
+        if min_spm is not None:
+            try:
+                min_spm = int(min_spm)
+                if min_spm < 0 or min_spm > 10:
+                    min_spm = None
+            except (ValueError, TypeError):
+                min_spm = None
+        
+        income_max = scholarship.get("household_income_max")
+        if income_max is not None:
+            try:
+                income_max = float(income_max)
+                if income_max < 0:
+                    income_max = None
+            except (ValueError, TypeError):
+                income_max = None
+        
+        def clean_string(val):
+            if val is None or (isinstance(val, str) and not val.strip()):
+                return None
+            return val
             
         draft_data = {
             "title": scholarship.get("title"),
-            "provider": scholarship.get("provider"),
-            "amount": scholarship.get("amount"),
-            "deadline": scholarship.get("deadline"),
-            "education_level": scholarship.get("education_level"),
-            "url": request.url,
-            "description": scholarship.get("description"),
-            "source_quote": scholarship.get("source_quote"),
-            "status": "pending"
+            "provider": clean_string(scholarship.get("provider")),
+            "amount": clean_string(scholarship.get("amount")),
+            "deadline": clean_string(scholarship.get("deadline")),
+            "education_level": clean_string(scholarship.get("education_level")),
+            "url": primary_url,
+            "description": clean_string(scholarship.get("description")),
+            "source_quote": clean_string(scholarship.get("source_quote")),
+            "status": "pending",
+            "study_areas": study_areas,
+            "min_cgpa": min_cgpa,
+            "min_spm_as": min_spm,
+            "household_income_max": income_max,
+            "state_restriction": state,
+            "is_bumiputera_only": bool(scholarship.get("is_bumiputera_only", False)),
+            "ai_matching_context": clean_string(scholarship.get("ai_matching_context"))
         }
         
         try:
@@ -427,7 +561,7 @@ async def scrape_scholarship_url(request: ScrapeRequest):
             print(f"Failed to insert draft: {e}")
     
     if drafts_created == 0:
-        return ScrapeResponse(drafts_created=0, message="No scholarships found on this page")
+        return ScrapeResponse(drafts_created=0, message="No scholarships found on these pages")
     
     return ScrapeResponse(
         drafts_created=drafts_created,
@@ -447,6 +581,73 @@ def list_drafts(status: Optional[str] = Query("pending", description="Filter by 
         return result.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch drafts: {str(e)}")
+
+
+@app.put("/admin/drafts/{draft_id}", response_model=DraftResponse)
+def update_draft(draft_id: int, update_data: DraftUpdateRequest):
+    try:
+        draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
+        
+        if not draft_result.data:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        
+        raw_dict = update_data.model_dump(exclude_unset=True)
+        update_dict = {}
+        
+        string_fields = ["title", "provider", "amount", "deadline", "education_level", "url", "description", "ai_matching_context"]
+        for key in string_fields:
+            if key in raw_dict:
+                val = raw_dict[key]
+                update_dict[key] = val if val and val.strip() else None
+        
+        if "study_areas" in raw_dict:
+            areas = raw_dict["study_areas"]
+            if areas:
+                areas = [a for a in areas if a in STUDY_AREAS]
+                update_dict["study_areas"] = areas if areas else ["General"]
+            else:
+                update_dict["study_areas"] = ["General"]
+        
+        if "state_restriction" in raw_dict:
+            state = raw_dict["state_restriction"]
+            update_dict["state_restriction"] = state if state in MALAYSIAN_STATES else None
+        
+        if "min_cgpa" in raw_dict:
+            cgpa = raw_dict["min_cgpa"]
+            if cgpa is not None and 0 <= cgpa <= 4:
+                update_dict["min_cgpa"] = cgpa
+            else:
+                update_dict["min_cgpa"] = None
+        
+        if "min_spm_as" in raw_dict:
+            spm = raw_dict["min_spm_as"]
+            if spm is not None and 0 <= spm <= 10:
+                update_dict["min_spm_as"] = spm
+            else:
+                update_dict["min_spm_as"] = None
+        
+        if "household_income_max" in raw_dict:
+            income = raw_dict["household_income_max"]
+            if income is not None and income >= 0:
+                update_dict["household_income_max"] = income
+            else:
+                update_dict["household_income_max"] = None
+        
+        if "is_bumiputera_only" in raw_dict:
+            update_dict["is_bumiputera_only"] = bool(raw_dict["is_bumiputera_only"])
+        
+        if not update_dict:
+            return draft_result.data[0]
+        
+        result = supabase.table("scholarship_drafts").update(update_dict).eq("id", draft_id).execute()
+        
+        if result.data:
+            return result.data[0]
+        raise HTTPException(status_code=500, detail="Failed to update draft")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update draft: {str(e)}")
 
 
 @app.post("/admin/drafts/{draft_id}/publish", response_model=PublishResponse)
@@ -469,7 +670,14 @@ def publish_draft(draft_id: int):
             "deadline": draft["deadline"] or "2025-12-31",
             "education_level": draft["education_level"] or "Various",
             "url": draft["url"],
-            "tags": []
+            "tags": [],
+            "study_areas": draft.get("study_areas") or ["General"],
+            "min_cgpa": draft.get("min_cgpa"),
+            "min_spm_as": draft.get("min_spm_as"),
+            "household_income_max": draft.get("household_income_max"),
+            "state_restriction": draft.get("state_restriction"),
+            "is_bumiputera_only": draft.get("is_bumiputera_only", False),
+            "ai_matching_context": draft.get("ai_matching_context")
         }
         
         scholarship_result = supabase.table("scholarships").insert(scholarship_data).execute()

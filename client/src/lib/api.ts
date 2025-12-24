@@ -1,4 +1,6 @@
-import { Scholarship } from "@shared/schema";
+import { Scholarship, ScholarshipMatch, ScholarshipDraft, StudentProfile, MALAYSIAN_STATES, STUDY_AREAS } from "@shared/schema";
+
+export { MALAYSIAN_STATES, STUDY_AREAS };
 
 export interface FetchScholarshipsParams {
   query?: string;
@@ -50,6 +52,13 @@ export interface ScholarshipCreate {
   education_level: string;
   url?: string;
   tags?: string[];
+  study_areas?: string[];
+  min_cgpa?: number | null;
+  min_spm_as?: number | null;
+  household_income_max?: number | null;
+  state_restriction?: string | null;
+  is_bumiputera_only?: boolean;
+  ai_matching_context?: string | null;
 }
 
 export async function createScholarship(data: ScholarshipCreate): Promise<Scholarship> {
@@ -92,6 +101,12 @@ export interface ProfileSyncRequest {
   bio: string;
   education_level?: string;
   field_of_study?: string;
+  cgpa?: number | null;
+  spm_as?: number | null;
+  household_income?: number | null;
+  state?: string | null;
+  intended_study_areas?: string[];
+  is_bumiputera?: boolean;
 }
 
 export interface ProfileSyncResponse {
@@ -112,15 +127,22 @@ export async function syncProfile(data: ProfileSyncRequest): Promise<ProfileSync
   return response.json();
 }
 
-export interface ScholarshipMatch extends Scholarship {
-  similarity_score: number;
+export interface MatchRequest {
+  embedding: number[];
+  limit?: number;
+  cgpa?: number | null;
+  spm_as?: number | null;
+  household_income?: number | null;
+  state?: string | null;
+  intended_study_areas?: string[];
+  is_bumiputera?: boolean;
 }
 
-export async function matchScholarships(embedding: number[], limit: number = 5): Promise<ScholarshipMatch[]> {
+export async function matchScholarships(request: MatchRequest): Promise<ScholarshipMatch[]> {
   const response = await fetch("/api/scholarships/match", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ embedding, limit }),
+    body: JSON.stringify(request),
   });
   if (!response.ok) {
     const error = await response.text();
@@ -169,15 +191,15 @@ export interface ScrapeResponse {
   message: string;
 }
 
-export async function scrapeUrl(url: string): Promise<ScrapeResponse> {
+export async function scrapeUrls(urls: string[]): Promise<ScrapeResponse> {
   const response = await fetch("/api/admin/scrape", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ urls }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || `Failed to scrape URL: ${response.status}`);
+    throw new Error(errorData.error || errorData.detail || `Failed to scrape URLs: ${response.status}`);
   }
   return response.json();
 }
@@ -193,6 +215,30 @@ export interface Draft {
   description: string | null;
   source_quote: string | null;
   status: string;
+  study_areas?: string[] | null;
+  min_cgpa?: number | null;
+  min_spm_as?: number | null;
+  household_income_max?: number | null;
+  state_restriction?: string | null;
+  is_bumiputera_only?: boolean | null;
+  ai_matching_context?: string | null;
+}
+
+export interface DraftUpdate {
+  title?: string;
+  provider?: string;
+  amount?: string;
+  deadline?: string;
+  education_level?: string;
+  url?: string;
+  description?: string;
+  study_areas?: string[];
+  min_cgpa?: number | null;
+  min_spm_as?: number | null;
+  household_income_max?: number | null;
+  state_restriction?: string | null;
+  is_bumiputera_only?: boolean;
+  ai_matching_context?: string;
 }
 
 export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> {
@@ -202,6 +248,19 @@ export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> 
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch drafts: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function updateDraft(id: number, data: DraftUpdate): Promise<Draft> {
+  const response = await fetch(`/api/admin/drafts/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to update draft: ${response.status}`);
   }
   return response.json();
 }
@@ -218,7 +277,7 @@ export async function publishDraft(id: number): Promise<PublishResponse> {
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || `Failed to publish draft: ${response.status}`);
+    throw new Error(errorData.error || errorData.detail || `Failed to publish draft: ${response.status}`);
   }
   return response.json();
 }
@@ -229,6 +288,6 @@ export async function rejectDraft(id: number): Promise<void> {
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || `Failed to reject draft: ${response.status}`);
+    throw new Error(errorData.error || errorData.detail || `Failed to reject draft: ${response.status}`);
   }
 }
