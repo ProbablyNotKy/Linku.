@@ -24,6 +24,9 @@ from schemas import (
     DraftUpdateRequest,
     PublishResponse,
     ScholarshipList,
+    UserProfileCreate,
+    UserProfileResponse,
+    UserProfileMatchRequest,
     MALAYSIAN_STATES,
     STUDY_AREAS
 )
@@ -270,6 +273,182 @@ def sync_profile(request: ProfileSyncRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e)}")
+
+
+# Household income bracket to RM conversion
+INCOME_BRACKETS = {
+    "B40": 4850,    # Below RM 4,850/month
+    "M40": 10959,   # RM 4,850 - 10,959/month
+    "T20": 999999   # Above RM 10,959/month (no limit)
+}
+
+
+def create_profile_text(profile: dict) -> str:
+    """Create text representation of profile for embedding generation."""
+    parts = []
+    if profile.get("bio_achievements"):
+        parts.append(profile["bio_achievements"])
+    if profile.get("education_level"):
+        parts.append(f"Education level: {profile['education_level']}.")
+    if profile.get("study_areas"):
+        parts.append(f"Interested in: {', '.join(profile['study_areas'])}.")
+    if profile.get("state"):
+        parts.append(f"From {profile['state']}, Malaysia.")
+    if profile.get("cgpa"):
+        parts.append(f"CGPA: {profile['cgpa']}.")
+    if profile.get("spm_as"):
+        parts.append(f"SPM A's: {profile['spm_as']}.")
+    return " ".join(parts)
+
+
+@app.post("/profiles/", response_model=UserProfileResponse)
+def create_user_profile(profile: UserProfileCreate):
+    """Create a new user profile and generate embedding."""
+    try:
+        data = profile.model_dump()
+        
+        # Generate embedding from profile data
+        profile_text = create_profile_text(data)
+        embedding = generate_embedding(profile_text)
+        data["embedding"] = embedding
+        
+        result = supabase.table("user_profiles").insert(data).execute()
+        
+        if result.data:
+            profile_data = result.data[0]
+            return UserProfileResponse(
+                id=profile_data["id"],
+                education_level=profile_data.get("education_level"),
+                cgpa=profile_data.get("cgpa"),
+                spm_as=profile_data.get("spm_as"),
+                household_income=profile_data.get("household_income"),
+                state=profile_data.get("state"),
+                is_bumiputera=profile_data.get("is_bumiputera", False),
+                study_areas=profile_data.get("study_areas"),
+                bio_achievements=profile_data.get("bio_achievements"),
+                has_embedding=profile_data.get("embedding") is not None
+            )
+        raise HTTPException(status_code=500, detail="Failed to create profile")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create profile: {str(e)}")
+
+
+@app.get("/profiles/{profile_id}", response_model=UserProfileResponse)
+def get_user_profile(profile_id: str):
+    """Get a user profile by ID."""
+    result = supabase.table("user_profiles").select("*").eq("id", profile_id).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    profile_data = result.data[0]
+    return UserProfileResponse(
+        id=profile_data["id"],
+        education_level=profile_data.get("education_level"),
+        cgpa=profile_data.get("cgpa"),
+        spm_as=profile_data.get("spm_as"),
+        household_income=profile_data.get("household_income"),
+        state=profile_data.get("state"),
+        is_bumiputera=profile_data.get("is_bumiputera", False),
+        study_areas=profile_data.get("study_areas"),
+        bio_achievements=profile_data.get("bio_achievements"),
+        has_embedding=profile_data.get("embedding") is not None
+    )
+
+
+@app.post("/profiles/match", response_model=List[ScholarshipMatchResponse])
+def match_with_profile(request: UserProfileMatchRequest):
+    """Match scholarships using a stored profile from Supabase."""
+    # Get profile from database
+    profile_result = supabase.table("user_profiles").select("*").eq("id", request.profile_id).execute()
+    
+    if not profile_result.data:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    profile = profile_result.data[0]
+    
+    if not profile.get("embedding"):
+        raise HTTPException(status_code=400, detail="Profile has no embedding. Please recreate your profile.")
+    
+    # Convert household income bracket to RM value for comparison
+    household_income_rm = INCOME_BRACKETS.get(profile.get("household_income"), None)
+    
+    try:
+        embedding_str = "[" + ",".join(map(str, profile["embedding"])) + "]"
+        
+        result = supabase.rpc(
+            "match_scholarships",
+            {
+                "query_embedding": embedding_str,
+                "match_count": request.limit * 3
+            }
+        ).execute()
+        
+        if not result.data:
+            return []
+        
+        matches = []
+        for row in result.data:
+            is_eligible = True
+            ineligibility_reasons = []
+            
+            # CGPA check
+            if profile.get("cgpa") is not None and row.get("min_cgpa") is not None:
+                if profile["cgpa"] < row["min_cgpa"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Requires minimum CGPA of {row['min_cgpa']}")
+            
+            # SPM A's check
+            if profile.get("spm_as") is not None and row.get("min_spm_as") is not None:
+                if profile["spm_as"] < row["min_spm_as"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Requires minimum {row['min_spm_as']} A's in SPM")
+            
+            # Household income check (convert bracket to RM)
+            if household_income_rm is not None and row.get("household_income_max") is not None:
+                if household_income_rm > row["household_income_max"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Household income exceeds RM {row['household_income_max']:,.0f} limit")
+            
+            # State restriction check
+            if row.get("state_restriction") and profile.get("state"):
+                if profile["state"] != row["state_restriction"]:
+                    is_eligible = False
+                    ineligibility_reasons.append(f"Restricted to {row['state_restriction']} residents")
+            
+            # Bumiputera check
+            if row.get("is_bumiputera_only") and not profile.get("is_bumiputera"):
+                is_eligible = False
+                ineligibility_reasons.append("Restricted to Bumiputera applicants")
+            
+            similarity_score = row.get("similarity", 0) if is_eligible else 0
+            
+            matches.append(ScholarshipMatchResponse(
+                id=row["id"],
+                title=row["title"],
+                provider=row["provider"],
+                amount=row["amount"],
+                deadline=row["deadline"],
+                education_level=row["education_level"],
+                url=row.get("url"),
+                tags=row.get("tags"),
+                study_areas=row.get("study_areas"),
+                min_cgpa=row.get("min_cgpa"),
+                min_spm_as=row.get("min_spm_as"),
+                household_income_max=row.get("household_income_max"),
+                state_restriction=row.get("state_restriction"),
+                is_bumiputera_only=row.get("is_bumiputera_only", False),
+                similarity_score=similarity_score,
+                is_eligible=is_eligible,
+                ineligibility_reasons=ineligibility_reasons if ineligibility_reasons else None
+            ))
+        
+        # Sort: eligible first (by similarity), then ineligible
+        matches.sort(key=lambda x: (not x.is_eligible, -x.similarity_score))
+        
+        return matches[:request.limit]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to match scholarships: {str(e)}")
 
 
 @app.post("/scholarships/match", response_model=List[ScholarshipMatchResponse])

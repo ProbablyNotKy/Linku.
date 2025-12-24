@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch } from "wouter";
-import { Scholarship } from "@shared/schema";
-import { fetchScholarships, matchScholarships, ScholarshipMatch } from "@/lib/api";
+import { Scholarship, ScholarshipMatch } from "@shared/schema";
+import { fetchScholarships, matchWithProfile } from "@/lib/api";
 import Header from "@/components/Header";
 import ScholarshipCard from "@/components/ScholarshipCard";
 import LoadingState from "@/components/LoadingState";
@@ -49,9 +49,11 @@ export default function Home() {
 
   useEffect(() => {
     const profileCreated = localStorage.getItem("ascendia_profile_created");
-    setHasProfile(profileCreated === "true");
+    const profileId = localStorage.getItem("ascendia_profile_id");
+    const hasValidProfile = profileCreated === "true" && !!profileId;
+    setHasProfile(hasValidProfile);
     
-    if (searchParams.includes("magic=true") && profileCreated === "true") {
+    if (searchParams.includes("magic=true") && hasValidProfile) {
       setMagicMatchEnabled(true);
     }
   }, [searchParams]);
@@ -75,8 +77,8 @@ export default function Home() {
   }, []);
 
   const loadMatchedScholarships = useCallback(async () => {
-    const embeddingStr = localStorage.getItem("ascendia_profile_embedding");
-    if (!embeddingStr) {
+    const profileId = localStorage.getItem("ascendia_profile_id");
+    if (!profileId) {
       setMagicMatchEnabled(false);
       return;
     }
@@ -84,12 +86,11 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     try {
-      const embedding = JSON.parse(embeddingStr);
-      const matches = await matchScholarships(embedding, 10);
+      const matches = await matchWithProfile(profileId, 10);
       setMatchedScholarships(matches);
     } catch (err) {
       console.error("Failed to match scholarships:", err);
-      setError("Failed to find matches. The scholarship database may not be vectorized yet.");
+      setError("Failed to find matches. Please try creating your profile again.");
       setMagicMatchEnabled(false);
     } finally {
       setIsLoading(false);

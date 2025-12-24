@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { 
-  ArrowLeft, ArrowRight, User, GraduationCap, Sparkles, CheckCircle2, 
-  AlertCircle, Loader2 
+  ArrowLeft, ArrowRight, GraduationCap, Sparkles, CheckCircle2, 
+  AlertCircle, Loader2, User, Target, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -13,43 +16,95 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { syncProfile } from "@/lib/api";
+import { createUserProfile, MALAYSIAN_STATES, STUDY_AREAS } from "@/lib/api";
 
 const EDUCATION_LEVELS = [
   { value: "SPM", label: "SPM" },
+  { value: "STPM", label: "STPM" },
   { value: "Diploma", label: "Diploma" },
-  { value: "Degree", label: "Degree / Undergraduate" },
-  { value: "Masters", label: "Masters / Postgraduate" },
+  { value: "Undergraduate", label: "Undergraduate / Degree" },
+  { value: "Postgraduate", label: "Postgraduate / Masters" },
   { value: "PhD", label: "PhD" },
 ];
 
-const FIELDS_OF_STUDY = [
-  { value: "engineering", label: "Engineering" },
-  { value: "medicine", label: "Medicine & Health Sciences" },
-  { value: "business", label: "Business & Finance" },
-  { value: "it", label: "IT & Computer Science" },
-  { value: "arts", label: "Arts & Humanities" },
-  { value: "science", label: "Natural Sciences" },
-  { value: "law", label: "Law" },
-  { value: "education", label: "Education" },
-  { value: "other", label: "Other" },
+const INCOME_BRACKETS = [
+  { value: "B40", label: "B40 (Below RM 4,850/month)" },
+  { value: "M40", label: "M40 (RM 4,850 - 10,959/month)" },
+  { value: "T20", label: "T20 (Above RM 10,959/month)" },
+];
+
+const STEPS = [
+  { id: 1, title: "Academics", icon: GraduationCap },
+  { id: 2, title: "Eligibility", icon: Target },
+  { id: 3, title: "Interests", icon: BookOpen },
 ];
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
-  const [bio, setBio] = useState("");
+  
+  // Step 1: Academics
   const [educationLevel, setEducationLevel] = useState("");
-  const [fieldOfStudy, setFieldOfStudy] = useState("");
+  const [cgpa, setCgpa] = useState<string>("");
+  const [spmAs, setSpmAs] = useState<string>("");
+  
+  // Step 2: Eligibility
+  const [householdIncome, setHouseholdIncome] = useState("");
+  const [state, setState] = useState("");
+  const [isBumiputera, setIsBumiputera] = useState(false);
+  
+  // Step 3: Interests
+  const [selectedStudyAreas, setSelectedStudyAreas] = useState<string[]>([]);
+  const [bioAchievements, setBioAchievements] = useState("");
+  
+  // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const handleNext = () => {
-    if (step === 1 && bio.trim().length < 50) {
-      setError("Please write at least 50 characters about yourself.");
-      return;
+  const toggleStudyArea = (area: string) => {
+    setSelectedStudyAreas(prev => 
+      prev.includes(area) 
+        ? prev.filter(a => a !== area)
+        : [...prev, area]
+    );
+  };
+
+  const validateStep = (stepNum: number): boolean => {
+    switch (stepNum) {
+      case 1:
+        if (!educationLevel) {
+          setError("Please select your education level.");
+          return false;
+        }
+        return true;
+      case 2:
+        if (!householdIncome) {
+          setError("Please select your household income bracket.");
+          return false;
+        }
+        if (!state) {
+          setError("Please select your state.");
+          return false;
+        }
+        return true;
+      case 3:
+        if (selectedStudyAreas.length === 0) {
+          setError("Please select at least one study area.");
+          return false;
+        }
+        if (bioAchievements.trim().length < 50) {
+          setError("Please write at least 50 characters about yourself.");
+          return false;
+        }
+        return true;
+      default:
+        return true;
     }
+  };
+
+  const handleNext = () => {
+    if (!validateStep(step)) return;
     setError("");
     setStep(step + 1);
   };
@@ -60,31 +115,37 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!educationLevel) {
-      setError("Please select your education level.");
-      return;
-    }
+    if (!validateStep(3)) return;
 
     setIsSubmitting(true);
     setError("");
 
     try {
-      const response = await syncProfile({
-        bio,
+      const profileData = {
         education_level: educationLevel,
-        field_of_study: fieldOfStudy || undefined,
-      });
+        cgpa: cgpa ? parseFloat(cgpa) : null,
+        spm_as: spmAs ? parseInt(spmAs, 10) : null,
+        household_income: householdIncome,
+        state: state,
+        is_bumiputera: isBumiputera,
+        study_areas: selectedStudyAreas,
+        bio_achievements: bioAchievements,
+      };
 
-      localStorage.setItem("ascendia_profile_embedding", JSON.stringify(response.embedding));
+      const response = await createUserProfile(profileData);
+      
+      // Store profile ID in localStorage for Magic Match
+      localStorage.setItem("ascendia_profile_id", response.id);
       localStorage.setItem("ascendia_profile_created", "true");
       
       setSuccess(true);
       
+      // Redirect to Magic Match
       setTimeout(() => {
         setLocation("/?magic=true");
       }, 2000);
     } catch (err) {
-      console.error("Failed to sync profile:", err);
+      console.error("Failed to create profile:", err);
       setError(err instanceof Error ? err.message : "Failed to create your profile. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -102,7 +163,7 @@ export default function Onboarding() {
             Profile Created!
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Your AI profile has been generated. Redirecting you to find your best scholarship matches...
+            Your scholarship matcher profile is ready. Redirecting you to find your best matches...
           </p>
           <div className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -125,14 +186,30 @@ export default function Onboarding() {
             <ArrowLeft className="w-4 h-4" />
             Back to Home
           </Link>
+          
+          {/* Step indicators */}
           <div className="flex items-center gap-2">
-            {[1, 2].map((s) => (
-              <div
-                key={s}
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  s === step ? "bg-indigo-400" : s < step ? "bg-green-400" : "bg-indigo-700"
-                }`}
-              />
+            {STEPS.map((s, idx) => (
+              <div key={s.id} className="flex items-center">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                    s.id === step 
+                      ? "bg-indigo-400 text-white" 
+                      : s.id < step 
+                        ? "bg-green-400 text-white" 
+                        : "bg-indigo-700 text-indigo-300"
+                  }`}
+                >
+                  {s.id < step ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <s.icon className="w-4 h-4" />
+                  )}
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <div className={`w-8 h-0.5 ${s.id < step ? "bg-green-400" : "bg-indigo-700"}`} />
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -144,8 +221,8 @@ export default function Onboarding() {
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Create Your AI Profile</h1>
-                <p className="text-indigo-200">Let us find scholarships that match your story</p>
+                <h1 className="text-2xl font-bold text-white">Scholarship Matcher</h1>
+                <p className="text-indigo-200">Step {step} of 3: {STEPS[step - 1].title}</p>
               </div>
             </div>
           </div>
@@ -158,65 +235,16 @@ export default function Onboarding() {
               </div>
             )}
 
+            {/* Step 1: Academics */}
             {step === 1 && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-2">
-                    <User className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Background</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Tell us about yourself</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Share your story, experiences, and achievements
-                  </label>
-                  <Textarea
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Example: I am a Form 5 student from Kuala Lumpur with a passion for STEM subjects. I have participated in robotics competitions and won 2nd place at the state level. I volunteer at a local orphanage teaching basic computer skills. My goal is to pursue engineering at a top university..."
-                    className="min-h-[200px] resize-none"
-                    data-testid="textarea-bio"
-                  />
-                  <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Include: leadership, academics, community service, achievements</span>
-                    <span className={bio.length < 50 ? "text-amber-500" : "text-green-500"}>
-                      {bio.length} / 50+ characters
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-4">
-                  <h3 className="font-medium text-indigo-900 dark:text-indigo-200 mb-2">Tips for a better profile:</h3>
-                  <ul className="text-sm text-indigo-700 dark:text-indigo-300 space-y-1">
-                    <li>Mention your academic interests and strengths</li>
-                    <li>Include leadership roles or team experiences</li>
-                    <li>Describe community service or volunteer work</li>
-                    <li>Share your career goals and aspirations</li>
-                  </ul>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={handleNext} data-testid="button-next">
-                    Next
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
               <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-2">
                     <GraduationCap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Your Goals</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">What are you looking for?</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Academic Information</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Tell us about your education</p>
                   </div>
                 </div>
 
@@ -241,32 +269,195 @@ export default function Onboarding() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Field of Study (Optional)
+                      CGPA (Optional)
                     </label>
-                    <Select value={fieldOfStudy} onValueChange={setFieldOfStudy}>
-                      <SelectTrigger className="w-full" data-testid="select-field-of-study">
-                        <SelectValue placeholder="Select your field of interest" />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="4"
+                      value={cgpa}
+                      onChange={(e) => setCgpa(e.target.value)}
+                      placeholder="e.g., 3.50"
+                      data-testid="input-cgpa"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter your current or expected CGPA (0-4 scale)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      SPM A's (Optional)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="12"
+                      value={spmAs}
+                      onChange={(e) => setSpmAs(e.target.value)}
+                      placeholder="e.g., 8"
+                      data-testid="input-spm-as"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Number of A's obtained in SPM (0-12)</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleNext} data-testid="button-next-step1">
+                    Next
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Eligibility */}
+            {step === 2 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-2">
+                    <Target className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Eligibility Details</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Help us filter scholarships for you</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Household Income <span className="text-red-500">*</span>
+                    </label>
+                    <Select value={householdIncome} onValueChange={setHouseholdIncome}>
+                      <SelectTrigger className="w-full" data-testid="select-household-income">
+                        <SelectValue placeholder="Select income bracket" />
                       </SelectTrigger>
                       <SelectContent>
-                        {FIELDS_OF_STUDY.map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
+                        {INCOME_BRACKETS.map((bracket) => (
+                          <SelectItem key={bracket.value} value={bracket.value}>
+                            {bracket.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
 
-                <div className="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-4">
-                  <p className="text-sm text-amber-700 dark:text-amber-300">
-                    Your profile will be analyzed by AI to find the best matching scholarships. 
-                    The more details you provide, the better the matches will be.
-                  </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <Select value={state} onValueChange={setState}>
+                      <SelectTrigger className="w-full" data-testid="select-state">
+                        <SelectValue placeholder="Select your state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MALAYSIAN_STATES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Bumiputera Status
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Some scholarships are exclusive to Bumiputera applicants
+                      </p>
+                    </div>
+                    <Switch
+                      checked={isBumiputera}
+                      onCheckedChange={setIsBumiputera}
+                      data-testid="switch-bumiputera"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-between gap-4">
-                  <Button variant="outline" onClick={handleBack} data-testid="button-back">
+                  <Button variant="outline" onClick={handleBack} data-testid="button-back-step2">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button onClick={handleNext} data-testid="button-next-step2">
+                    Next
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Interests */}
+            {step === 3 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-indigo-100 dark:bg-indigo-900 rounded-full p-2">
+                    <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Interests & Achievements</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">What are you passionate about?</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Study Areas <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Select the fields you're interested in</p>
+                  <div className="flex flex-wrap gap-2">
+                    {STUDY_AREAS.map((area) => (
+                      <Badge
+                        key={area}
+                        variant={selectedStudyAreas.includes(area) ? "default" : "outline"}
+                        className={`cursor-pointer transition-colors ${
+                          selectedStudyAreas.includes(area)
+                            ? "bg-indigo-600 text-white"
+                            : "hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                        }`}
+                        onClick={() => toggleStudyArea(area)}
+                        data-testid={`badge-study-area-${area.replace(/\s+/g, '-').toLowerCase()}`}
+                      >
+                        {area}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Story & Achievements <span className="text-red-500">*</span>
+                  </label>
+                  <Textarea
+                    value={bioAchievements}
+                    onChange={(e) => setBioAchievements(e.target.value)}
+                    placeholder="Share your story: academic achievements, leadership experiences, community service, extracurricular activities, and career goals. The more details you provide, the better we can match you with scholarships."
+                    className="min-h-[150px] resize-none"
+                    data-testid="textarea-bio-achievements"
+                  />
+                  <div className="flex justify-between mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span>Include: leadership, academics, service, achievements</span>
+                    <span className={bioAchievements.length < 50 ? "text-amber-500" : "text-green-500"}>
+                      {bioAchievements.length} / 50+ characters
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-indigo-50 dark:bg-indigo-900/30 rounded-lg p-4">
+                  <h3 className="font-medium text-indigo-900 dark:text-indigo-200 mb-2">Tips for a better match:</h3>
+                  <ul className="text-sm text-indigo-700 dark:text-indigo-300 space-y-1">
+                    <li>Mention specific competitions or awards you've won</li>
+                    <li>Include leadership roles in clubs or organizations</li>
+                    <li>Describe community service or volunteer work</li>
+                    <li>Share your career aspirations and goals</li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-between gap-4">
+                  <Button variant="outline" onClick={handleBack} data-testid="button-back-step3">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back
                   </Button>
@@ -284,7 +475,7 @@ export default function Onboarding() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        Create My AI Profile
+                        Find My Scholarships
                       </>
                     )}
                   </Button>

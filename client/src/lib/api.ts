@@ -291,3 +291,66 @@ export async function rejectDraft(id: number): Promise<void> {
     throw new Error(errorData.error || errorData.detail || `Failed to reject draft: ${response.status}`);
   }
 }
+
+// User Profile types and functions
+export interface UserProfileCreate {
+  education_level: string;
+  cgpa?: number | null;
+  spm_as?: number | null;
+  household_income: string;  // B40, M40, T20
+  state: string;
+  is_bumiputera: boolean;
+  study_areas: string[];
+  bio_achievements: string;
+}
+
+export interface UserProfileResponse {
+  id: string;
+  education_level: string | null;
+  cgpa: number | null;
+  spm_as: number | null;
+  household_income: string | null;
+  state: string | null;
+  is_bumiputera: boolean;
+  study_areas: string[] | null;
+  bio_achievements: string | null;
+  has_embedding: boolean;
+}
+
+export async function createUserProfile(data: UserProfileCreate): Promise<UserProfileResponse> {
+  const response = await fetch("/api/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to create profile: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getUserProfile(profileId: string): Promise<UserProfileResponse> {
+  const response = await fetch(`/api/profiles/${profileId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to get profile: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function matchWithProfile(profileId: string, limit: number = 10): Promise<ScholarshipMatch[]> {
+  const response = await fetch("/api/profiles/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile_id: profileId, limit }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to match scholarships: ${response.status}`);
+  }
+  return response.json();
+}

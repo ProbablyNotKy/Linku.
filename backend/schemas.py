@@ -190,3 +190,36 @@ class DraftUpdateRequest(BaseModel):
 class PublishResponse(BaseModel):
     scholarship_id: int
     message: str
+
+
+# User Profile schemas
+class UserProfileCreate(BaseModel):
+    education_level: str
+    cgpa: Optional[float] = None
+    spm_as: Optional[int] = None
+    household_income: str  # B40, M40, T20
+    state: str
+    is_bumiputera: bool = False
+    study_areas: List[str] = []
+    bio_achievements: str
+
+
+class UserProfileResponse(BaseModel):
+    id: str
+    education_level: Optional[str] = None
+    cgpa: Optional[float] = None
+    spm_as: Optional[int] = None
+    household_income: Optional[str] = None
+    state: Optional[str] = None
+    is_bumiputera: bool = False
+    study_areas: Optional[List[str]] = None
+    bio_achievements: Optional[str] = None
+    has_embedding: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class UserProfileMatchRequest(BaseModel):
+    profile_id: str
+    limit: int = 10
