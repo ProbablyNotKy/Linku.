@@ -1,0 +1,45 @@
+Step 0: Prerequisites (Do this first)
+Before pasting the prompt, go to your Supabase SQL Editor and run this to enable the "Brain" of the app:
+
+SQL
+
+CREATE EXTENSION IF NOT EXISTS vector;
+ALTER TABLE scholarships ADD COLUMN embedding vector(1536);
+The "Ascendia Phase 2" Master Prompt
+Paste this into your Replit Agent:
+
+Role: Senior Full-Stack & AI Engineer. Project State: Ascendia is a Polyglot Monorepo (Next.js/React frontend, FastAPI/Python backend). Goal: Implement the "AI Brain" (Semantic Matching) and "Student Onboarding."
+
+Task 1: Backend (FastAPI)
+
+In backend/main.py, create a new endpoint POST /api/profile/sync. This endpoint should take a student's bio/resume text, call OpenAI's text-embedding-3-small model to generate a 1536-dimension vector, and return it.
+
+Create an endpoint POST /api/scholarships/match. It should take a user's embedding and use a Supabase RPC (Remote Procedure Call) to find the top 5 most similar scholarships using cosine distance.
+
+Create a utility script or endpoint to "Vectorize" existing scholarships. It should loop through all scholarships in the DB that don't have an embedding, generate one from the title and description, and save it back to Supabase.
+
+Task 2: Frontend (React)
+
+Create a new page/route /onboarding. This should be a multi-step form:
+
+Step 1: "Your Background" (Textarea for their bio/experience).
+
+Step 2: "Your Goals" (Dropdowns for education level and field of study).
+
+On submit, this page should call the /api/profile/sync endpoint and store the resulting "Match Score" or vector in a local state or a new profiles table in Supabase.
+
+Update Home.tsx to include a "Magic Match" toggle. When active, instead of normal filtering, it displays scholarships sorted by their similarity to the user's profile.
+
+Task 3: The Socratic Coach Foundation
+
+Create a ChatComponent.tsx and a backend endpoint POST /api/chat/coach.
+
+The endpoint should use GPT-4o with a system prompt: "You are the Ascendia Socratic Mentor. You help Malaysian students with scholarship applications. NEVER write for them. Ask guiding questions using the STAR method to help them structure their own stories."
+
+Technical Constraints:
+
+Use the existing SUPABASE_SERVICE_KEY and OPENAI_API_KEY from Secrets.
+
+Maintain the current Indigo/Gold design system using Shadcn UI.
+
+Ensure all new Python dependencies are added to backend/requirements.txt.

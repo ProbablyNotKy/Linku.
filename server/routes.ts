@@ -102,5 +102,80 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/profile/sync", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/profile/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`FastAPI error: ${response.status} - ${error}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error syncing profile:", error);
+      res.status(500).json({ error: "Failed to sync profile" });
+    }
+  });
+
+  app.post("/api/scholarships/match", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/scholarships/match`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`FastAPI error: ${response.status} - ${error}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error matching scholarships:", error);
+      res.status(500).json({ error: "Failed to match scholarships" });
+    }
+  });
+
+  app.post("/api/scholarships/vectorize", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/scholarships/vectorize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`FastAPI error: ${response.status} - ${error}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error vectorizing scholarships:", error);
+      res.status(500).json({ error: "Failed to vectorize scholarships" });
+    }
+  });
+
+  app.post("/api/chat/coach", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/chat/coach`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`FastAPI error: ${response.status} - ${error}`);
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error with coach chat:", error);
+      res.status(500).json({ error: "Failed to get coach response" });
+    }
+  });
+
   return httpServer;
 }
