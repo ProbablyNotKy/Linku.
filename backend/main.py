@@ -283,6 +283,168 @@ INCOME_BRACKETS = {
 }
 
 
+# ============================================================================
+# ENGLISH PROFICIENCY EQUIVALENCE ENGINE
+# Maps MUET, IELTS, and SPM English to a Universal Scale (1-9) based on CEFR
+# ============================================================================
+
+# SPM English grade to Universal Scale mapping
+SPM_ENGLISH_TO_UNIVERSAL = {
+    "A+": 9,   # C1/C2
+    "A": 8,    # C1
+    "A-": 7,   # B2 High
+    "B+": 6,   # B2 Low
+    "B": 5,    # B1 High
+    "C+": 4,   # B1 Low
+    "C": 3,    # A2 High
+    "D": 2,    # A2 Low
+    "E": 1,    # A1
+    "G": 0,    # Below A1
+}
+
+# MUET Band to Universal Scale mapping
+MUET_TO_UNIVERSAL = {
+    5.0: 9,    # Aggregated Band 5 - C1/C2
+    4.5: 7,    # High Band 4 - B2 High  
+    4.0: 6,    # Band 4 - B2 Low
+    3.5: 5,    # High Band 3 - B1 High
+    3.0: 4,    # Band 3 - B1 Low
+    2.5: 3,    # High Band 2 - A2 High
+    2.0: 2,    # Band 2 - A2 Low
+    1.5: 1,    # High Band 1 - A1
+    1.0: 0,    # Band 1 - Below A1
+}
+
+# IELTS to Universal Scale mapping
+IELTS_TO_UNIVERSAL = {
+    9.0: 9,    # Expert - C2
+    8.5: 9,    # Very good - C2
+    8.0: 8,    # Very good - C1
+    7.5: 8,    # Good - C1
+    7.0: 8,    # Good - C1
+    6.5: 7,    # Competent - B2 High
+    6.0: 7,    # Competent - B2 High
+    5.5: 6,    # Modest - B2 Low
+    5.0: 5,    # Modest - B1 High
+    4.5: 4,    # Limited - B1 Low
+    4.0: 3,    # Limited - A2 High
+    3.5: 2,    # Extremely limited - A2 Low
+    3.0: 1,    # Extremely limited - A1
+}
+
+
+def get_muet_universal_level(muet_band: float) -> int:
+    """Convert MUET band to universal scale (1-9)."""
+    if muet_band is None:
+        return 0
+    # Find the closest MUET band
+    bands = sorted(MUET_TO_UNIVERSAL.keys())
+    for band in bands:
+        if muet_band <= band:
+            return MUET_TO_UNIVERSAL[band]
+    return MUET_TO_UNIVERSAL[max(bands)]
+
+
+def get_ielts_universal_level(ielts_score: float) -> int:
+    """Convert IELTS score to universal scale (1-9)."""
+    if ielts_score is None:
+        return 0
+    # Find the closest IELTS score (round to nearest 0.5)
+    rounded = round(ielts_score * 2) / 2
+    if rounded in IELTS_TO_UNIVERSAL:
+        return IELTS_TO_UNIVERSAL[rounded]
+    # Find closest lower score
+    scores = sorted(IELTS_TO_UNIVERSAL.keys(), reverse=True)
+    for score in scores:
+        if ielts_score >= score:
+            return IELTS_TO_UNIVERSAL[score]
+    return 0
+
+
+def get_spm_english_universal_level(grade: str) -> int:
+    """Convert SPM English grade to universal scale (1-9)."""
+    if grade is None:
+        return 0
+    return SPM_ENGLISH_TO_UNIVERSAL.get(grade.upper().strip(), 0)
+
+
+def calculate_user_english_level(
+    muet_band: Optional[float] = None,
+    ielts_score: Optional[float] = None,
+    spm_english_grade: Optional[str] = None
+) -> int:
+    """
+    Calculate the user's highest English proficiency level from any test they have.
+    Returns the maximum universal level from all available tests.
+    """
+    levels = []
+    if muet_band is not None:
+        levels.append(get_muet_universal_level(muet_band))
+    if ielts_score is not None:
+        levels.append(get_ielts_universal_level(ielts_score))
+    if spm_english_grade is not None:
+        levels.append(get_spm_english_universal_level(spm_english_grade))
+    
+    return max(levels) if levels else 0
+
+
+def check_english_eligibility(
+    profile: dict,
+    scholarship: dict
+) -> tuple[bool, Optional[str]]:
+    """
+    Check if user meets scholarship English requirements.
+    Uses cross-test equivalence if user has different test type.
+    
+    Returns: (is_eligible, ineligibility_reason or None)
+    """
+    # Get scholarship requirements
+    req_muet = scholarship.get("min_muet")
+    req_ielts = scholarship.get("min_ielts")
+    req_spm_english = scholarship.get("min_spm_english")
+    
+    # If no English requirement, user is eligible
+    if req_muet is None and req_ielts is None and req_spm_english is None:
+        return True, None
+    
+    # Get user's English scores
+    user_muet = profile.get("muet_band")
+    user_ielts = profile.get("ielts_score")
+    user_spm_english = profile.get("spm_english_grade")
+    
+    # If user has no English scores, they're NOT automatically disqualified
+    # (following spec: don't disqualify if user hasn't taken test yet)
+    if user_muet is None and user_ielts is None and user_spm_english is None:
+        return True, None
+    
+    # Calculate user's universal English level
+    user_level = calculate_user_english_level(user_muet, user_ielts, user_spm_english)
+    
+    # Calculate required universal level from scholarship
+    required_levels = []
+    requirement_descriptions = []
+    
+    if req_muet is not None:
+        required_levels.append(get_muet_universal_level(req_muet))
+        requirement_descriptions.append(f"MUET Band {req_muet}")
+    if req_ielts is not None:
+        required_levels.append(get_ielts_universal_level(req_ielts))
+        requirement_descriptions.append(f"IELTS {req_ielts}")
+    if req_spm_english is not None:
+        required_levels.append(get_spm_english_universal_level(req_spm_english))
+        requirement_descriptions.append(f"SPM English {req_spm_english}")
+    
+    # User needs to meet at least the minimum required level
+    # (using the lowest requirement if multiple are specified)
+    min_required_level = min(required_levels) if required_levels else 0
+    
+    if user_level >= min_required_level:
+        return True, None
+    else:
+        req_str = " or ".join(requirement_descriptions)
+        return False, f"English requirement not met: needs {req_str}"
+
+
 def create_profile_text(profile: dict) -> str:
     """Create text representation of profile for embedding generation."""
     parts = []
@@ -326,7 +488,10 @@ def create_user_profile(profile: UserProfileCreate):
                 is_bumiputera=profile_data.get("is_bumiputera", False),
                 study_areas=profile_data.get("study_areas"),
                 bio_achievements=profile_data.get("bio_achievements"),
-                has_embedding=profile_data.get("embedding") is not None
+                has_embedding=profile_data.get("embedding") is not None,
+                muet_band=profile_data.get("muet_band"),
+                ielts_score=profile_data.get("ielts_score"),
+                spm_english_grade=profile_data.get("spm_english_grade")
             )
         raise HTTPException(status_code=500, detail="Failed to create profile")
     except Exception as e:
@@ -352,7 +517,10 @@ def get_user_profile(profile_id: str):
         is_bumiputera=profile_data.get("is_bumiputera", False),
         study_areas=profile_data.get("study_areas"),
         bio_achievements=profile_data.get("bio_achievements"),
-        has_embedding=profile_data.get("embedding") is not None
+        has_embedding=profile_data.get("embedding") is not None,
+        muet_band=profile_data.get("muet_band"),
+        ielts_score=profile_data.get("ielts_score"),
+        spm_english_grade=profile_data.get("spm_english_grade")
     )
 
 
@@ -430,6 +598,13 @@ def match_with_profile(request: UserProfileMatchRequest):
                 is_eligible = False
                 ineligibility_reasons.append("Restricted to Bumiputera applicants")
             
+            # English proficiency check using equivalence engine
+            english_eligible, english_reason = check_english_eligibility(profile, row)
+            if not english_eligible:
+                is_eligible = False
+                if english_reason:
+                    ineligibility_reasons.append(english_reason)
+            
             similarity_score = row.get("similarity", 0) if is_eligible else 0
             
             matches.append(ScholarshipMatchResponse(
@@ -447,6 +622,9 @@ def match_with_profile(request: UserProfileMatchRequest):
                 household_income_max=row.get("household_income_max"),
                 state_restriction=row.get("state_restriction"),
                 is_bumiputera_only=row.get("is_bumiputera_only", False),
+                min_muet=row.get("min_muet"),
+                min_ielts=row.get("min_ielts"),
+                min_spm_english=row.get("min_spm_english"),
                 similarity_score=similarity_score,
                 is_eligible=is_eligible,
                 ineligibility_reasons=ineligibility_reasons if ineligibility_reasons else None
@@ -597,7 +775,7 @@ SCRAPER_SYSTEM_PROMPT = f"""You are a scholarship data extraction expert for Mal
 
 CRITICAL RULES - HALLUCINATION PREVENTION:
 1. If information is NOT EXPLICITLY STATED in the text, set the field to null
-2. NEVER guess or infer numbers (CGPA, income limits, SPM grades)
+2. NEVER guess or infer numbers (CGPA, income limits, SPM grades, MUET bands, IELTS scores)
 3. If no specific study area is mentioned, use ["General"]
 4. For each piece of data, include a source_quote - the exact phrase that proves this data
 5. If multiple distinct scholarships exist, extract EACH separately
@@ -618,6 +796,11 @@ ELIGIBILITY FIELDS (set to null if not explicitly stated):
 - household_income_max: Maximum household income in RM (number). NULL if not stated
 - state_restriction: If restricted to a specific state from {MALAYSIAN_STATES}. NULL if nationwide
 - is_bumiputera_only: true if explicitly for Bumiputera only, false otherwise
+
+ENGLISH PROFICIENCY REQUIREMENTS (set to null if not explicitly stated):
+- min_muet: MUET Band requirement (float 1-5, e.g. 4.0 for "Band 4", 4.5 for "Band 4.5"). Look for phrases like "MUET Band 4", "minimum Band 3". NULL if not stated
+- min_ielts: IELTS score requirement (float 0-9, e.g. 6.0, 6.5, 7.0). Look for phrases like "IELTS 6.0", "minimum IELTS score of 6.5". NULL if not stated
+- min_spm_english: SPM English 1119 grade requirement (string like "A+", "A", "B+", "B"). Look for phrases like "SPM English Credit", "minimum grade B+ in English". NULL if not stated
 
 AI MATCHING CONTEXT (IMPORTANT):
 - ai_matching_context: Write 1-2 sentences describing the IDEAL candidate profile based on the scholarship's values and preferences. Example: "Values leadership and community service in rural areas. Prefers candidates with entrepreneurial mindset."
@@ -718,6 +901,35 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
             except (ValueError, TypeError):
                 income_max = None
         
+        # Validate English proficiency fields
+        min_muet = scholarship.get("min_muet")
+        if min_muet is not None:
+            try:
+                min_muet = float(min_muet)
+                if min_muet < 1 or min_muet > 5:
+                    min_muet = None
+            except (ValueError, TypeError):
+                min_muet = None
+        
+        min_ielts = scholarship.get("min_ielts")
+        if min_ielts is not None:
+            try:
+                min_ielts = float(min_ielts)
+                if min_ielts < 0 or min_ielts > 9:
+                    min_ielts = None
+            except (ValueError, TypeError):
+                min_ielts = None
+        
+        min_spm_english = scholarship.get("min_spm_english")
+        valid_spm_grades = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"]
+        if min_spm_english is not None:
+            if isinstance(min_spm_english, str):
+                min_spm_english = min_spm_english.strip().upper()
+                if min_spm_english not in valid_spm_grades:
+                    min_spm_english = None
+            else:
+                min_spm_english = None
+        
         def clean_value(val):
             if val is None:
                 return None
@@ -750,7 +962,10 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
             "household_income_max": income_max,
             "state_restriction": state,
             "is_bumiputera_only": bool(scholarship.get("is_bumiputera_only", False)),
-            "ai_matching_context": clean_value(scholarship.get("ai_matching_context"))
+            "ai_matching_context": clean_value(scholarship.get("ai_matching_context")),
+            "min_muet": min_muet,
+            "min_ielts": min_ielts,
+            "min_spm_english": min_spm_english
         }
         
         for key, val in optional_fields.items():

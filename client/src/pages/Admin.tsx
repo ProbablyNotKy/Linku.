@@ -5,7 +5,7 @@ import {
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
   X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon
 } from "lucide-react";
-import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS } from "@shared/schema";
+import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES } from "@shared/schema";
 import { 
   fetchScholarships, 
   createScholarship, 
@@ -155,7 +155,10 @@ export default function Admin() {
       household_income_max: draft.household_income_max,
       state_restriction: draft.state_restriction,
       is_bumiputera_only: draft.is_bumiputera_only || false,
-      ai_matching_context: draft.ai_matching_context || ""
+      ai_matching_context: draft.ai_matching_context || "",
+      min_muet: draft.min_muet,
+      min_ielts: draft.min_ielts,
+      min_spm_english: draft.min_spm_english
     });
   };
 
@@ -1452,6 +1455,61 @@ export default function Admin() {
                       {area}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  English Proficiency Requirements
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Set minimum English test scores. Cross-test equivalence is used for matching.
+                </p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Min MUET Band</label>
+                    <select
+                      value={draftFormData.min_muet ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, min_muet: e.target.value ? parseFloat(e.target.value) : null})}
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="select-draft-min-muet"
+                    >
+                      <option value="">None</option>
+                      <option value="1">Band 1</option>
+                      <option value="2">Band 2</option>
+                      <option value="3">Band 3</option>
+                      <option value="4">Band 4</option>
+                      <option value="5">Band 5</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Min IELTS Score</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="9"
+                      value={draftFormData.min_ielts ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, min_ielts: e.target.value ? parseFloat(e.target.value) : null})}
+                      placeholder="e.g., 6.0"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-draft-min-ielts"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Min SPM English</label>
+                    <select
+                      value={draftFormData.min_spm_english ?? ""}
+                      onChange={(e) => setDraftFormData({...draftFormData, min_spm_english: e.target.value || null})}
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="select-draft-min-spm-english"
+                    >
+                      <option value="">None</option>
+                      {SPM_ENGLISH_GRADES.map(grade => (
+                        <option key={grade} value={grade}>{grade}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 

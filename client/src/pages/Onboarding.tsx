@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createUserProfile, MALAYSIAN_STATES, STUDY_AREAS } from "@/lib/api";
+import { createUserProfile, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES } from "@/lib/api";
 
 const EDUCATION_LEVELS = [
   { value: "SPM", label: "SPM" },
@@ -47,6 +47,11 @@ export default function Onboarding() {
   const [educationLevel, setEducationLevel] = useState("");
   const [cgpa, setCgpa] = useState<string>("");
   const [spmAs, setSpmAs] = useState<string>("");
+  
+  // English Proficiency (optional)
+  const [muetBand, setMuetBand] = useState<string>("");
+  const [ieltsScore, setIeltsScore] = useState<string>("");
+  const [spmEnglishGrade, setSpmEnglishGrade] = useState<string>("");
   
   // Step 2: Eligibility
   const [householdIncome, setHouseholdIncome] = useState("");
@@ -130,6 +135,9 @@ export default function Onboarding() {
         is_bumiputera: isBumiputera,
         study_areas: selectedStudyAreas,
         bio_achievements: bioAchievements,
+        muet_band: muetBand ? parseFloat(muetBand) : null,
+        ielts_score: ieltsScore ? parseFloat(ieltsScore) : null,
+        spm_english_grade: spmEnglishGrade || null,
       };
 
       const response = await createUserProfile(profileData);
@@ -301,7 +309,72 @@ export default function Onboarding() {
                   </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    English Proficiency (Optional)
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    Enter any English test scores you have. We use cross-test equivalence to match scholarships.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        MUET Band
+                      </label>
+                      <Select value={muetBand} onValueChange={setMuetBand}>
+                        <SelectTrigger className="w-full" data-testid="select-muet-band">
+                          <SelectValue placeholder="Select Band" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Result Yet</SelectItem>
+                          <SelectItem value="1">Band 1</SelectItem>
+                          <SelectItem value="2">Band 2</SelectItem>
+                          <SelectItem value="3">Band 3</SelectItem>
+                          <SelectItem value="4">Band 4</SelectItem>
+                          <SelectItem value="5">Band 5</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        IELTS Score
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        min="0"
+                        max="9"
+                        value={ieltsScore}
+                        onChange={(e) => setIeltsScore(e.target.value)}
+                        placeholder="e.g., 6.5"
+                        data-testid="input-ielts-score"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        SPM English Grade
+                      </label>
+                      <Select value={spmEnglishGrade} onValueChange={setSpmEnglishGrade}>
+                        <SelectTrigger className="w-full" data-testid="select-spm-english">
+                          <SelectValue placeholder="Select Grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Result Yet</SelectItem>
+                          {SPM_ENGLISH_GRADES.map((grade) => (
+                            <SelectItem key={grade} value={grade}>
+                              {grade}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-6">
                   <Button onClick={handleNext} data-testid="button-next-step1">
                     Next
                     <ArrowRight className="w-4 h-4 ml-2" />

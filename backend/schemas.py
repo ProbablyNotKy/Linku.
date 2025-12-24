@@ -34,6 +34,10 @@ class ScholarshipCreate(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
     ai_matching_context: Optional[str] = None
+    # English proficiency requirements
+    min_muet: Optional[float] = None  # MUET Band (1-5)
+    min_ielts: Optional[float] = None  # IELTS score (0-9)
+    min_spm_english: Optional[str] = None  # SPM English grade (A+, A, A-, B+, B, C, etc.)
 
 
 class ScholarshipResponse(BaseModel):
@@ -52,6 +56,10 @@ class ScholarshipResponse(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
     ai_matching_context: Optional[str] = None
+    # English proficiency requirements
+    min_muet: Optional[float] = None
+    min_ielts: Optional[float] = None
+    min_spm_english: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -72,6 +80,10 @@ class ScholarshipMatchResponse(BaseModel):
     household_income_max: Optional[float] = None
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
+    # English proficiency requirements
+    min_muet: Optional[float] = None
+    min_ielts: Optional[float] = None
+    min_spm_english: Optional[str] = None
     similarity_score: float
     is_eligible: bool = True
     ineligibility_reasons: Optional[List[str]] = None
@@ -135,6 +147,10 @@ class ScholarshipExtraction(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = None
     ai_matching_context: Optional[str] = None
+    # English proficiency requirements
+    min_muet: Optional[float] = None
+    min_ielts: Optional[float] = None
+    min_spm_english: Optional[str] = None
 
 
 class ScholarshipList(BaseModel):
@@ -168,6 +184,10 @@ class DraftResponse(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = None
     ai_matching_context: Optional[str] = None
+    # English proficiency requirements
+    min_muet: Optional[float] = None
+    min_ielts: Optional[float] = None
+    min_spm_english: Optional[str] = None
 
 
 class DraftUpdateRequest(BaseModel):
@@ -185,6 +205,10 @@ class DraftUpdateRequest(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = None
     ai_matching_context: Optional[str] = None
+    # English proficiency requirements
+    min_muet: Optional[float] = None
+    min_ielts: Optional[float] = None
+    min_spm_english: Optional[str] = None
 
 
 class PublishResponse(BaseModel):
@@ -202,6 +226,10 @@ class UserProfileCreate(BaseModel):
     is_bumiputera: bool = False
     study_areas: List[str] = []
     bio_achievements: str
+    # English proficiency scores
+    muet_band: Optional[float] = None  # MUET Band (1-5)
+    ielts_score: Optional[float] = None  # IELTS score (0-9)
+    spm_english_grade: Optional[str] = None  # SPM English grade (A+, A, A-, B+, etc.)
 
 
 class UserProfileResponse(BaseModel):
@@ -215,6 +243,10 @@ class UserProfileResponse(BaseModel):
     study_areas: Optional[List[str]] = None
     bio_achievements: Optional[str] = None
     has_embedding: bool = False
+    # English proficiency scores
+    muet_band: Optional[float] = None
+    ielts_score: Optional[float] = None
+    spm_english_grade: Optional[str] = None
 
     class Config:
         from_attributes = True

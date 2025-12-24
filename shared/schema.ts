@@ -50,6 +50,10 @@ export interface Scholarship {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean;
   ai_matching_context?: string | null;
+  // English proficiency requirements
+  min_muet?: number | null;
+  min_ielts?: number | null;
+  min_spm_english?: string | null;
 }
 
 // Scholarship match result with eligibility info
@@ -78,6 +82,10 @@ export interface ScholarshipDraft {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean;
   ai_matching_context?: string | null;
+  // English proficiency requirements
+  min_muet?: number | null;
+  min_ielts?: number | null;
+  min_spm_english?: string | null;
 }
 
 // Student profile for matching
@@ -92,4 +100,11 @@ export interface StudentProfile {
   intended_study_areas?: string[];
   is_bumiputera?: boolean;
   embedding?: number[];
+  // English proficiency scores
+  muet_band?: number | null;
+  ielts_score?: number | null;
+  spm_english_grade?: string | null;
 }
+
+// Valid SPM English grades
+export const SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"] as const;

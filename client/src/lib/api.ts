@@ -59,6 +59,9 @@ export interface ScholarshipCreate {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean;
   ai_matching_context?: string | null;
+  min_muet?: number | null;
+  min_ielts?: number | null;
+  min_spm_english?: string | null;
 }
 
 export async function createScholarship(data: ScholarshipCreate): Promise<Scholarship> {
@@ -222,6 +225,9 @@ export interface Draft {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean | null;
   ai_matching_context?: string | null;
+  min_muet?: number | null;
+  min_ielts?: number | null;
+  min_spm_english?: string | null;
 }
 
 export interface DraftUpdate {
@@ -239,6 +245,9 @@ export interface DraftUpdate {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean;
   ai_matching_context?: string;
+  min_muet?: number | null;
+  min_ielts?: number | null;
+  min_spm_english?: string | null;
 }
 
 export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> {
@@ -302,6 +311,9 @@ export interface UserProfileCreate {
   is_bumiputera: boolean;
   study_areas: string[];
   bio_achievements: string;
+  muet_band?: number | null;
+  ielts_score?: number | null;
+  spm_english_grade?: string | null;
 }
 
 export interface UserProfileResponse {
@@ -315,7 +327,13 @@ export interface UserProfileResponse {
   study_areas: string[] | null;
   bio_achievements: string | null;
   has_embedding: boolean;
+  muet_band: number | null;
+  ielts_score: number | null;
+  spm_english_grade: string | null;
 }
+
+// Valid SPM English grades
+export const SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"] as const;
 
 export async function createUserProfile(data: UserProfileCreate): Promise<UserProfileResponse> {
   const response = await fetch("/api/profiles", {
