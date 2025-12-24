@@ -101,6 +101,22 @@ CREATE TABLE scholarship_drafts (
   is_bumiputera_only BOOLEAN DEFAULT FALSE,
   ai_matching_context TEXT
 );
+
+-- User Profiles for Scholarship Matching
+CREATE TABLE user_profiles (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  education_level TEXT,
+  cgpa REAL,
+  spm_as INTEGER,
+  household_income TEXT,           -- B40, M40, T20
+  state TEXT,
+  is_bumiputera BOOLEAN DEFAULT FALSE,
+  study_areas TEXT[],
+  bio_achievements TEXT,
+  embedding vector(1536),          -- AI-generated profile embedding
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
 ### Malaysian Constants
@@ -190,10 +206,15 @@ interface Scholarship {
 - `DELETE /scholarships/{id}` - Delete scholarship
 
 ### AI Endpoints
-- `POST /profile/sync` - Generate embedding from student bio/profile
-- `POST /scholarships/match` - Find top matching scholarships using cosine similarity
+- `POST /profile/sync` - Generate embedding from student bio/profile (legacy)
+- `POST /scholarships/match` - Find top matching scholarships using cosine similarity (legacy)
 - `POST /scholarships/vectorize` - Batch vectorize all scholarships without embeddings
 - `POST /chat/coach` - Socratic Mentor chat (GPT-4o with STAR method guidance)
+
+### User Profile Endpoints (Phase 2.5)
+- `POST /profiles/` - Create user profile with all eligibility fields, auto-generates embedding
+- `GET /profiles/{profile_id}` - Retrieve stored profile
+- `POST /profiles/match` - Match scholarships using stored profile with hard-filtering
 
 ### Admin Discovery Agent Endpoints
 - `POST /admin/scrape` - Multi-URL researcher: accepts array of URLs, extracts scholarship data with hallucination guards
@@ -232,16 +253,21 @@ Access the admin page at `/admin` (hidden from main navigation).
 ## AI Features (Phase 2)
 
 ### Student Onboarding (`/onboarding`)
-Multi-step form to create an AI profile:
-1. Step 1: Background - Student shares their story, experiences, achievements
-2. Step 2: Goals - Education level and field of study selection
-3. Profile embedding is generated and stored in localStorage
+3-step "Scholarship Matcher" wizard that saves profiles to Supabase:
+1. **Step 1: Academics** - Education level, CGPA (0-4 scale), SPM A's (0-12)
+2. **Step 2: Eligibility** - Household income bracket (B40/M40/T20), Malaysian state, Bumiputera status
+3. **Step 3: Interests** - Study areas multi-select (16 categories), bio/achievements text
+4. Profile embedding is generated server-side and stored in Supabase `user_profiles` table
+5. Profile ID is stored in localStorage for Magic Match
+6. Auto-redirects to `/?magic=true` after completion
 
 ### Magic Match
-Toggle on Home page that switches from keyword search to AI-powered similarity ranking:
-- Uses student's profile embedding to find best-matching scholarships
+Toggle on Home page that switches from keyword search to AI-powered matching:
+- Uses stored profile from Supabase (requires profile_id in localStorage)
+- **Two-phase matching**: Hard filters (eligibility) eliminate ineligible scholarships first, then semantic similarity ranks using ai_matching_context
 - Displays match percentage on each scholarship card
-- Requires profile creation first
+- Shows ineligibility reasons for scholarships that don't match criteria
+- Household income brackets converted to RM: B40 (≤RM 4,850), M40 (≤RM 10,959), T20 (no limit)
 
 ### Socratic Mentor Chat
 Floating chat button on Home page:
