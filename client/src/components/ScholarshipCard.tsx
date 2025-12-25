@@ -127,7 +127,7 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
               data-testid={`badge-education-${scholarship.id}`}
             >
               <GraduationCap className="w-3 h-3 mr-1" />
-              {scholarship.education_level}
+              {scholarship.education_level || "All Levels"}
             </Badge>
           </div>
 

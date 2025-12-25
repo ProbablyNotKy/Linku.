@@ -24,7 +24,7 @@ class ScholarshipCreate(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: str
+    education_level: Optional[str] = None  # Optional - not all scholarships specify level
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -46,7 +46,7 @@ class ScholarshipResponse(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: str
+    education_level: Optional[str] = None  # Optional - not all scholarships specify level
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -71,7 +71,7 @@ class ScholarshipMatchResponse(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: str
+    education_level: Optional[str] = None  # Optional - not all scholarships specify level
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None

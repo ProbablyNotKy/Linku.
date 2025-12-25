@@ -40,7 +40,7 @@ export interface Scholarship {
   provider: string;
   amount: string;
   deadline: string;
-  education_level: string;
+  education_level: string | null;  // Null means open to all levels
   url?: string;
   tags?: string[];
   study_areas?: string[];

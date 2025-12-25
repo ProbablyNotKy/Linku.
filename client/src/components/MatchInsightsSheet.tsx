@@ -170,15 +170,15 @@ export default function MatchInsightsSheet({ scholarship, isOpen, onClose }: Mat
             <div className="grid grid-cols-1 gap-2">
               <EligibilityItem 
                 label="Education Level" 
-                status={badges.education} 
+                status={badges.education || "Match"} 
                 icon={<GraduationCap className="w-4 h-4" />}
-                detail={scholarship.education_level ? `Requires ${scholarship.education_level}` : undefined}
+                detail={scholarship.education_level ? `Requires ${scholarship.education_level}` : "Open to all education levels"}
               />
               <EligibilityItem 
                 label="Study Area" 
-                status={badges.study_area} 
+                status={badges.study_area || "Match"} 
                 icon={<BookOpen className="w-4 h-4" />}
-                detail={scholarship.study_areas?.length ? `For ${scholarship.study_areas.slice(0, 2).join(", ")}${scholarship.study_areas.length > 2 ? "..." : ""}` : undefined}
+                detail={scholarship.study_areas?.length ? `For ${scholarship.study_areas.slice(0, 2).join(", ")}${scholarship.study_areas.length > 2 ? "..." : ""}` : "Open to all study areas"}
               />
               <EligibilityItem 
                 label="CGPA" 

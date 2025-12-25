@@ -1309,7 +1309,7 @@ FIELD EXTRACTION GUIDELINES:
 - source_quote: The specific text from the page that confirms this scholarship
 
 ELIGIBILITY FIELDS (set to null if not explicitly stated):
-- study_areas: Array from {STUDY_AREAS}. Use ["General"] if not specified
+- study_areas: Array from {STUDY_AREAS}. Set to null if not specified (open to all fields)
 - min_cgpa: Minimum CGPA requirement (float like 3.0, 3.5). NULL if not stated
 - min_spm_as: Minimum number of A's required in SPM (integer). NULL if not stated
 - household_income_max: Maximum household income in RM (number). NULL if not stated
@@ -1382,12 +1382,12 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
             continue
         
         study_areas = scholarship.get("study_areas")
-        if not study_areas or len(study_areas) == 0:
-            study_areas = ["General"]
-        else:
+        if study_areas and len(study_areas) > 0:
             study_areas = [area for area in study_areas if area in STUDY_AREAS]
             if not study_areas:
-                study_areas = ["General"]
+                study_areas = None  # Keep as null if no valid areas
+        else:
+            study_areas = None  # Allow null - open to all study areas
         
         state = scholarship.get("state_restriction")
         if state and state not in MALAYSIAN_STATES:
@@ -1541,9 +1541,9 @@ def update_draft(draft_id: int, update_data: DraftUpdateRequest):
             areas = raw_dict["study_areas"]
             if areas:
                 areas = [a for a in areas if a in STUDY_AREAS]
-                update_dict["study_areas"] = areas if areas else ["General"]
+                update_dict["study_areas"] = areas if areas else None
             else:
-                update_dict["study_areas"] = ["General"]
+                update_dict["study_areas"] = None  # Allow null - open to all fields
         
         if "state_restriction" in raw_dict:
             state = raw_dict["state_restriction"]
@@ -1605,10 +1605,10 @@ def publish_draft(draft_id: int):
             "provider": draft["provider"] or "Unknown Provider",
             "amount": draft["amount"] or "Contact provider",
             "deadline": draft["deadline"] or "2025-12-31",
-            "education_level": draft["education_level"] or "Various",
+            "education_level": draft.get("education_level"),  # Allow null - matches all levels
             "url": draft["url"],
             "tags": [],
-            "study_areas": draft.get("study_areas") or ["General"],
+            "study_areas": draft.get("study_areas"),  # Allow null - matches all areas
             "min_cgpa": draft.get("min_cgpa"),
             "min_spm_as": draft.get("min_spm_as"),
             "household_income_max": draft.get("household_income_max"),
