@@ -172,7 +172,9 @@ export default function MatchInsightsSheet({ scholarship, isOpen, onClose }: Mat
                 label="Education Level" 
                 status={badges.education || "Match"} 
                 icon={<GraduationCap className="w-4 h-4" />}
-                detail={scholarship.education_level ? `Requires ${scholarship.education_level}` : "Open to all education levels"}
+                detail={scholarship.education_level && scholarship.education_level.length > 0 
+                  ? `Requires ${scholarship.education_level.join(", ")}` 
+                  : "Open to all education levels"}
               />
               <EligibilityItem 
                 label="Study Area" 

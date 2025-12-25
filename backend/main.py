@@ -66,6 +66,35 @@ STAR Method Questions:
 Always encourage students to find their own voice and express their genuine experiences."""
 
 
+def parse_postgres_array(value) -> Optional[List[str]]:
+    """Parse Postgres array format from Supabase response.
+    Handles: None, [], ["a", "b"], "{a,b}", or "a,b" formats.
+    """
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return value if value else None
+    if isinstance(value, str):
+        value = value.strip()
+        if not value or value == '{}':
+            return None
+        if value.startswith('{') and value.endswith('}'):
+            inner = value[1:-1]
+            if not inner:
+                return None
+            items = [item.strip().strip('"') for item in inner.split(',')]
+            return items if items else None
+        return [value]
+    return None
+
+
+def normalize_scholarship_data(data: dict) -> dict:
+    """Normalize scholarship data from Supabase to ensure correct types."""
+    if 'education_level' in data:
+        data['education_level'] = parse_postgres_array(data.get('education_level'))
+    return data
+
+
 def generate_embedding(text: str) -> List[float]:
     response = openai_client.embeddings.create(
         model=EMBEDDING_MODEL,
@@ -213,7 +242,7 @@ def list_scholarships(
     q = q.range(skip, skip + limit - 1)
     
     result = q.execute()
-    return result.data
+    return [normalize_scholarship_data(s) for s in result.data]
 
 
 @app.get("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
@@ -222,7 +251,7 @@ def get_scholarship(scholarship_id: int):
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
-    return result.data[0]
+    return normalize_scholarship_data(result.data[0])
 
 
 @app.put("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
@@ -244,7 +273,7 @@ def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate)
     result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
     
     if result.data:
-        return result.data[0]
+        return normalize_scholarship_data(result.data[0])
     raise HTTPException(status_code=500, detail="Failed to update scholarship")
 
 
@@ -363,15 +392,49 @@ def normalize_education_level(level: str) -> str:
     return mappings.get(normalized, level.strip())
 
 
-def check_education_pathway_eligibility(user_education: str, scholarship_education: str) -> tuple[bool, Optional[str]]:
+def check_education_pathway_eligibility(user_education: str, scholarship_education) -> tuple[bool, Optional[str]]:
     """
     Check if user's education level is eligible for the scholarship's target level.
+    scholarship_education can be a string, list of strings, or None (open to all).
     Returns: (is_eligible, ineligibility_reason or None)
     """
-    if not user_education or not scholarship_education:
-        return True, None  # If either is missing, don't filter
+    # If scholarship has no education level requirement (null/empty), it's open to all
+    if not scholarship_education:
+        return True, None
+    
+    if not user_education:
+        return True, None  # If user education is missing, don't filter
     
     user_level = normalize_education_level(user_education)
+    
+    # Handle array of education levels
+    if isinstance(scholarship_education, list):
+        if len(scholarship_education) == 0:
+            return True, None  # Empty array = open to all
+        
+        # Check if user's level matches any of the scholarship's accepted levels
+        for level in scholarship_education:
+            scholarship_level = normalize_education_level(level)
+            allowed_levels = EDUCATION_PATHWAYS.get(user_level, [])
+            
+            if not allowed_levels:
+                # Unknown user education level - check direct match
+                if user_level.lower() in scholarship_level.lower() or scholarship_level.lower() in user_level.lower():
+                    return True, None
+                continue
+            
+            scholarship_lower = scholarship_level.lower()
+            for allowed in allowed_levels:
+                if allowed.lower() in scholarship_lower or scholarship_lower in allowed.lower():
+                    return True, None
+            
+            # Also check if the exact user level is mentioned
+            if user_level.lower() in scholarship_lower:
+                return True, None
+        
+        return False, f"Education level mismatch: Your {user_level} level doesn't match {', '.join(scholarship_education)} scholarship"
+    
+    # Handle single string (legacy support)
     scholarship_level = normalize_education_level(scholarship_education)
     
     # Get allowed scholarship levels for this user's education
@@ -1027,9 +1090,10 @@ def match_with_profile(request: UserProfileMatchRequest):
                 continue  # Skip expired scholarships entirely
             
             # 2. EDUCATION PATHWAY CHECK (Strict)
+            scholarship_edu_level = parse_postgres_array(row.get("education_level"))
             edu_eligible, edu_reason = check_education_pathway_eligibility(
                 profile.get("education_level"),
-                row.get("education_level")
+                scholarship_edu_level
             )
             if not edu_eligible:
                 is_eligible = False
@@ -1128,7 +1192,7 @@ def match_with_profile(request: UserProfileMatchRequest):
                 provider=row["provider"],
                 amount=row["amount"],
                 deadline=row["deadline"],
-                education_level=row["education_level"],
+                education_level=parse_postgres_array(row.get("education_level")),
                 url=row.get("url"),
                 tags=row.get("tags"),
                 study_areas=row.get("study_areas"),
@@ -1210,7 +1274,7 @@ def match_scholarships(request: MatchRequest):
                 provider=row["provider"],
                 amount=row["amount"],
                 deadline=row["deadline"],
-                education_level=row["education_level"],
+                education_level=parse_postgres_array(row.get("education_level")),
                 url=row.get("url"),
                 tags=row.get("tags"),
                 study_areas=row.get("study_areas"),

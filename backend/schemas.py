@@ -24,7 +24,7 @@ class ScholarshipCreate(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: Optional[str] = None  # Optional - not all scholarships specify level
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -46,7 +46,7 @@ class ScholarshipResponse(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: Optional[str] = None  # Optional - not all scholarships specify level
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -71,7 +71,7 @@ class ScholarshipMatchResponse(BaseModel):
     provider: str
     amount: str
     deadline: date
-    education_level: Optional[str] = None  # Optional - not all scholarships specify level
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -144,7 +144,7 @@ class ScholarshipExtraction(BaseModel):
     provider: Optional[str] = None
     amount: Optional[str] = None
     deadline: Optional[str] = None
-    education_level: Optional[str] = None
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     description: Optional[str] = None
     source_quote: Optional[str] = None
     study_areas: Optional[List[str]] = None
@@ -179,7 +179,7 @@ class DraftResponse(BaseModel):
     provider: Optional[str] = None
     amount: Optional[str] = None
     deadline: Optional[str] = None
-    education_level: Optional[str] = None
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     description: Optional[str] = None
     source_quote: Optional[str] = None
@@ -202,7 +202,7 @@ class DraftUpdateRequest(BaseModel):
     provider: Optional[str] = None
     amount: Optional[str] = None
     deadline: Optional[str] = None
-    education_level: Optional[str] = None
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     description: Optional[str] = None
     study_areas: Optional[List[str]] = None

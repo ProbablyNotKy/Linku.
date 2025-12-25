@@ -49,7 +49,7 @@ export interface ScholarshipCreate {
   provider: string;
   amount: string;
   deadline: string;
-  education_level: string;
+  education_level: string[] | null;  // Array of levels, null = open to all
   url?: string;
   tags?: string[];
   study_areas?: string[];
@@ -213,7 +213,7 @@ export interface Draft {
   provider: string | null;
   amount: string | null;
   deadline: string | null;
-  education_level: string | null;
+  education_level: string[] | null;  // Array of levels, null = open to all
   url: string | null;
   description: string | null;
   source_quote: string | null;
@@ -235,7 +235,7 @@ export interface DraftUpdate {
   provider?: string;
   amount?: string;
   deadline?: string;
-  education_level?: string;
+  education_level?: string[] | null;  // Array of levels, null = open to all
   url?: string;
   description?: string;
   study_areas?: string[];

@@ -33,6 +33,12 @@ export const STUDY_AREAS = [
   "Islamic Studies", "General"
 ] as const;
 
+// Education levels for multi-select
+export const EDUCATION_LEVELS = [
+  "SPM", "STPM", "Foundation", "Diploma", "Degree", "Bachelor", 
+  "Undergraduate", "Master's", "Masters", "PhD", "Postgraduate"
+] as const;
+
 // Scholarship type matching FastAPI backend
 export interface Scholarship {
   id: number;
@@ -40,7 +46,7 @@ export interface Scholarship {
   provider: string;
   amount: string;
   deadline: string;
-  education_level: string | null;  // Null means open to all levels
+  education_level: string[] | null;  // Array of levels, null = open to all
   url?: string;
   tags?: string[];
   study_areas?: string[];
@@ -97,7 +103,7 @@ export interface ScholarshipDraft {
   provider?: string;
   amount?: string;
   deadline?: string;
-  education_level?: string;
+  education_level?: string[] | null;  // Array of levels, null = open to all
   url?: string;
   description?: string;
   source_quote?: string;

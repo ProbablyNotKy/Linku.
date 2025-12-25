@@ -5,7 +5,7 @@ import {
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
   X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon
 } from "lucide-react";
-import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES } from "@shared/schema";
+import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, EDUCATION_LEVELS } from "@shared/schema";
 import { 
   fetchScholarships, 
   createScholarship, 
@@ -22,14 +22,13 @@ import {
 } from "@/lib/api";
 
 const ADMIN_KEY = "Ascendia2024";
-const EDUCATION_LEVELS = ["SPM", "Diploma", "Degree", "Masters", "Undergraduate", "Postgraduate", "Diploma/Degree"];
 
 interface FormData {
   title: string;
   provider: string;
   amount: string;
   deadline: string;
-  education_level: string;
+  education_levels: string[];  // Multi-select array, empty = open to all
   url: string;
   tags: string;
   study_areas: string[];
@@ -46,7 +45,7 @@ const emptyFormData: FormData = {
   provider: "",
   amount: "",
   deadline: "",
-  education_level: "",
+  education_levels: [],  // Empty = open to all
   url: "",
   tags: "",
   study_areas: [],
@@ -146,10 +145,10 @@ export default function Admin() {
       provider: draft.provider || "",
       amount: draft.amount || "",
       deadline: draft.deadline || "",
-      education_level: draft.education_level || "",
+      education_level: draft.education_level || [],  // Array or empty for "open to all"
       url: draft.url || "",
       description: draft.description || "",
-      study_areas: draft.study_areas || ["General"],
+      study_areas: draft.study_areas || [],
       min_cgpa: draft.min_cgpa,
       min_spm_as: draft.min_spm_as,
       household_income_max: draft.household_income_max,
@@ -239,7 +238,7 @@ export default function Admin() {
     return scholarships.filter(s => 
       s.title.toLowerCase().includes(query) ||
       s.provider.toLowerCase().includes(query) ||
-      s.education_level.toLowerCase().includes(query)
+      (s.education_level && s.education_level.some(level => level.toLowerCase().includes(query)))
     );
   }, [scholarships, searchQuery]);
 
@@ -292,7 +291,7 @@ export default function Admin() {
       provider: scholarship.provider,
       amount: scholarship.amount,
       deadline: scholarship.deadline,
-      education_level: scholarship.education_level,
+      education_levels: scholarship.education_level || [],  // Array or empty for "open to all"
       url: scholarship.url || "",
       tags: scholarship.tags?.join(", ") || "",
       study_areas: scholarship.study_areas || [],
@@ -331,7 +330,7 @@ export default function Admin() {
         provider: formData.provider,
         amount: formData.amount,
         deadline: formData.deadline,
-        education_level: formData.education_level,
+        education_level: formData.education_levels.length > 0 ? formData.education_levels : null,  // null = open to all
         url: formData.url || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
         study_areas: formData.study_areas.length > 0 ? formData.study_areas : undefined,
@@ -656,7 +655,11 @@ export default function Admin() {
                           {scholarship.deadline}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-gray-600 dark:text-gray-300">{scholarship.education_level}</td>
+                      <td className="px-4 py-4 text-gray-600 dark:text-gray-300">
+                        {scholarship.education_level && scholarship.education_level.length > 0 
+                          ? scholarship.education_level.join(", ") 
+                          : <span className="text-indigo-600 dark:text-indigo-400">All Levels</span>}
+                      </td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -805,7 +808,9 @@ export default function Admin() {
                             {draft.provider && <span>Provider: {draft.provider}</span>}
                             {draft.amount && <span className="text-green-600 dark:text-green-400">{draft.amount}</span>}
                             {draft.deadline && <span>Deadline: {draft.deadline}</span>}
-                            {draft.education_level && <span>Level: {draft.education_level}</span>}
+                            {draft.education_level && draft.education_level.length > 0 
+                              ? <span>Level: {draft.education_level.join(", ")}</span>
+                              : <span className="text-indigo-600 dark:text-indigo-400">All Levels</span>}
                           </div>
                           <div className="flex flex-wrap gap-2 mt-2">
                             {draft.study_areas?.map((area, i) => (
@@ -996,23 +1001,55 @@ export default function Admin() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Education Level <span className="text-red-500">*</span>
+                    Education Levels
                   </label>
-                  <select
-                    name="education_level"
-                    value={formData.education_level}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    data-testid="select-education-level"
-                  >
-                    <option value="">Select level...</option>
-                    {EDUCATION_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800">
+                      <input
+                        type="checkbox"
+                        checked={formData.education_levels.length === 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({ ...prev, education_levels: [] }));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        data-testid="checkbox-open-to-all"
+                      />
+                      <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Open to All Levels</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700">
+                      {EDUCATION_LEVELS.map((level) => (
+                        <label key={level} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={formData.education_levels.includes(level)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  education_levels: [...prev.education_levels, level] 
+                                }));
+                              } else {
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  education_levels: prev.education_levels.filter(l => l !== level) 
+                                }));
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            data-testid={`checkbox-level-${level.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                          />
+                          <span className="text-gray-700 dark:text-gray-300">{level}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {formData.education_levels.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Selected: {formData.education_levels.join(", ")}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -1330,18 +1367,44 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Education Level</label>
-                  <select
-                    value={draftFormData.education_level || ""}
-                    onChange={(e) => setDraftFormData({...draftFormData, education_level: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    data-testid="select-draft-education"
-                  >
-                    <option value="">Select level</option>
-                    {EDUCATION_LEVELS.map(level => (
-                      <option key={level} value={level}>{level}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Education Levels</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800">
+                      <input
+                        type="checkbox"
+                        checked={!draftFormData.education_level || draftFormData.education_level.length === 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setDraftFormData({...draftFormData, education_level: []});
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        data-testid="checkbox-draft-open-to-all"
+                      />
+                      <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Open to All Levels</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 max-h-40 overflow-y-auto">
+                      {EDUCATION_LEVELS.map((level) => (
+                        <label key={level} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(draftFormData.education_level || []).includes(level)}
+                            onChange={(e) => {
+                              const currentLevels = draftFormData.education_level || [];
+                              if (e.target.checked) {
+                                setDraftFormData({...draftFormData, education_level: [...currentLevels, level]});
+                              } else {
+                                setDraftFormData({...draftFormData, education_level: currentLevels.filter(l => l !== level)});
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            data-testid={`checkbox-draft-level-${level.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                          />
+                          <span className="text-gray-700 dark:text-gray-300">{level}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL</label>
