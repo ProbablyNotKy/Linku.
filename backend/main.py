@@ -642,11 +642,18 @@ def calculate_hybrid_score(
 
 def generate_match_reasons(profile: dict, scholarship: dict, is_eligible: bool) -> List[str]:
     """
-    Generate human-readable match reasons explaining why this scholarship matches.
+    Generate detailed, human-readable match reasons explaining why this scholarship matches.
+    Provides specific values when available for better transparency.
     """
     reasons = []
     
-    # Study area match
+    # Education level match with specifics
+    user_edu = profile.get("education_level", "")
+    scholarship_edu = scholarship.get("education_level", "")
+    if is_eligible and user_edu and scholarship_edu:
+        reasons.append(f"Your {user_edu} level qualifies for {scholarship_edu} scholarships")
+    
+    # Study area match with specifics
     user_areas = profile.get("study_areas", [])
     scholarship_areas = scholarship.get("study_areas", [])
     if user_areas and scholarship_areas:
@@ -654,35 +661,67 @@ def generate_match_reasons(profile: dict, scholarship: dict, is_eligible: bool) 
         scholarship_set = set(a.lower() for a in scholarship_areas if a.lower() != "general")
         overlap = user_set.intersection(scholarship_set)
         if overlap:
-            matched_area = list(overlap)[0].title()
-            reasons.append(f"Matches your {matched_area} background")
+            matched_areas = [a.title() for a in list(overlap)[:2]]
+            if len(matched_areas) == 1:
+                reasons.append(f"Your {matched_areas[0]} field matches this scholarship")
+            else:
+                reasons.append(f"Your interests in {' and '.join(matched_areas)} align with this scholarship")
     
-    # B40 status match
-    if profile.get("household_income") == "B40":
-        if scholarship.get("household_income_max") is not None:
-            reasons.append("Matches your B40 status")
+    # CGPA match with specifics
+    user_cgpa = profile.get("cgpa")
+    min_cgpa = scholarship.get("min_cgpa")
+    if user_cgpa and min_cgpa:
+        if user_cgpa >= min_cgpa + 0.5:
+            reasons.append(f"Your CGPA ({user_cgpa:.2f}) significantly exceeds minimum ({min_cgpa:.2f})")
+        elif user_cgpa >= min_cgpa + 0.2:
+            reasons.append(f"Your CGPA ({user_cgpa:.2f}) comfortably exceeds minimum ({min_cgpa:.2f})")
+        elif user_cgpa >= min_cgpa:
+            reasons.append(f"Your CGPA ({user_cgpa:.2f}) meets the minimum requirement ({min_cgpa:.2f})")
+    
+    # SPM A's match with specifics
+    user_spm = profile.get("spm_as")
+    min_spm = scholarship.get("min_spm_as")
+    if user_spm and min_spm:
+        if user_spm >= min_spm + 2:
+            reasons.append(f"Your {user_spm} SPM A's exceed the requirement ({min_spm})")
+        elif user_spm >= min_spm:
+            reasons.append(f"Your {user_spm} SPM A's meet the requirement ({min_spm})")
+    
+    # B40 status match with specifics
+    income_bracket = profile.get("household_income", "")
+    income_max = scholarship.get("household_income_max")
+    if income_bracket == "B40" and income_max:
+        reasons.append(f"Prioritizes B40 households (income under RM {int(income_max):,}/month)")
+    elif income_bracket in ["B40", "M40"] and income_max and income_max >= 5000:
+        reasons.append("Income bracket qualifies for this need-based scholarship")
     
     # Bumiputera match
     if scholarship.get("is_bumiputera_only") and profile.get("is_bumiputera"):
-        reasons.append("Matches Bumiputera eligibility")
+        reasons.append("Open to Bumiputera applicants like you")
     
-    # State match
-    if scholarship.get("state_restriction") and profile.get("state") == scholarship.get("state_restriction"):
-        reasons.append(f"Open to {profile.get('state')} residents")
+    # State match with specifics
+    user_state = profile.get("state")
+    state_req = scholarship.get("state_restriction")
+    if state_req and user_state == state_req:
+        reasons.append(f"Reserved for {user_state} residents")
+    elif not state_req:
+        reasons.append("Open to students from all Malaysian states")
     
-    # Academic strength
-    user_cgpa = profile.get("cgpa")
-    min_cgpa = scholarship.get("min_cgpa")
-    if user_cgpa and min_cgpa and user_cgpa >= min_cgpa + 0.3:
-        reasons.append("Strong academic match")
-    elif user_cgpa and min_cgpa and user_cgpa >= min_cgpa:
-        reasons.append("Meets academic requirements")
+    # English proficiency match
+    user_muet = profile.get("muet_band")
+    user_ielts = profile.get("ielts_score")
+    min_muet = scholarship.get("min_muet")
+    min_ielts = scholarship.get("min_ielts")
+    if user_muet and min_muet and user_muet >= min_muet:
+        reasons.append(f"Your MUET Band {int(user_muet)} meets requirement (Band {int(min_muet)})")
+    elif user_ielts and min_ielts and user_ielts >= min_ielts:
+        reasons.append(f"Your IELTS {user_ielts} meets requirement ({min_ielts})")
     
-    # Education level match
-    if is_eligible and profile.get("education_level") and scholarship.get("education_level"):
-        reasons.append("Education level aligned")
+    # Semantic profile match (fallback or addition)
+    if len(reasons) < 2:
+        reasons.append("Your profile description aligns with this scholarship's goals")
     
-    return reasons if reasons else ["Based on semantic profile matching"]
+    return reasons[:5]  # Limit to top 5 most relevant reasons
 
 
 # ============================================================================
