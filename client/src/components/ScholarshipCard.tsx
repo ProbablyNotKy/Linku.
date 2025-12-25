@@ -33,7 +33,7 @@ function formatDate(dateString: string): string {
 }
 
 function isScholarshipMatch(scholarship: Scholarship | ScholarshipMatch): scholarship is ScholarshipMatch {
-  return 'is_eligible' in scholarship;
+  return 'match_score' in scholarship && scholarship.match_score !== undefined;
 }
 
 function getMatchScoreColor(score: number): string {
@@ -55,7 +55,7 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
   const isExpired = deadlineStatus === "expired";
   const isUrgent = deadlineStatus === "urgent";
   
-  const matchData = isScholarshipMatch(scholarship) ? scholarship : null;
+  const matchData = showMatchInfo && isScholarshipMatch(scholarship) ? scholarship : null;
   const matchScore = matchData?.match_score ?? 0;
   const isEligible = matchData?.is_eligible ?? true;
 
@@ -63,13 +63,13 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
     <Card 
       className={`flex flex-col h-full transition-all ${
         isExpired ? "opacity-60" : ""
-      } ${isUrgent ? "border-red-300 dark:border-red-800" : ""} ${
-        matchData && !isEligible ? "opacity-70 border-muted" : ""
+      } ${isUrgent && !isExpired ? "border-red-300 dark:border-red-800" : ""} ${
+        matchData && !isEligible && !isExpired ? "opacity-70" : ""
       }`}
       data-testid={`card-scholarship-${scholarship.id}`}
     >
       <div className="p-6 flex-1 flex flex-col">
-        {showMatchInfo && matchData && (
+        {matchData && (
           <div className={`flex items-center justify-between gap-2 mb-3 pb-3 border-b border-border`}>
             <div className="flex items-center gap-2">
               {isEligible ? (
