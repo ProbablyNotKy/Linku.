@@ -56,11 +56,38 @@ export interface Scholarship {
   min_spm_english?: string | null;
 }
 
-// Scholarship match result with eligibility info
+// Score breakdown for hybrid matching
+export interface ScoreBreakdown {
+  similarity_component: number;
+  academic_component: number;
+  socioeconomic_component: number;
+  raw_similarity: number;
+  academic_weight: number;
+  socioeconomic_weight: number;
+}
+
+// Eligibility badges for UI display
+export interface EligibilityBadges {
+  education?: string;
+  study_area?: string;
+  cgpa?: string;
+  spm?: string;
+  income?: string;
+  state?: string;
+  bumiputera?: string;
+  english?: string;
+}
+
+// Scholarship match result with eligibility info and hybrid scoring
 export interface ScholarshipMatch extends Scholarship {
   similarity_score: number;
+  match_score?: number;  // Hybrid score (0-100%)
   is_eligible: boolean;
   ineligibility_reasons?: string[];
+  // Match breakdown for UI
+  match_reasons?: string[];  // Human-readable match reasons
+  score_breakdown?: ScoreBreakdown;  // Detailed score components
+  eligibility_badges?: EligibilityBadges;  // Badge status per criteria
 }
 
 // Draft scholarship from scraper

@@ -265,17 +265,12 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             data-testid="scholarship-grid"
           >
-            {displayScholarships.map((scholarship, index) => (
-              <div key={scholarship.id} className="relative">
-                {magicMatchEnabled && 'similarity_score' in scholarship && (
-                  <Badge 
-                    className="absolute -top-2 -right-2 z-10 bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-0"
-                  >
-                    {Math.round((scholarship as ScholarshipMatch).similarity_score * 100)}% Match
-                  </Badge>
-                )}
-                <ScholarshipCard scholarship={scholarship} />
-              </div>
+            {displayScholarships.map((scholarship) => (
+              <ScholarshipCard 
+                key={scholarship.id} 
+                scholarship={scholarship} 
+                showMatchInfo={magicMatchEnabled}
+              />
             ))}
           </div>
         )}
