@@ -68,21 +68,47 @@ Always encourage students to find their own voice and express their genuine expe
 
 def parse_postgres_array(value) -> Optional[List[str]]:
     """Parse Postgres array format from Supabase response.
-    Handles: None, [], ["a", "b"], "{a,b}", or "a,b" formats.
+    Handles: None, [], ["a", "b"], "{a,b}", '["a","b"]' (JSON string), or "a,b" formats.
+    Returns None for empty arrays (meaning "open to all").
     """
+    import json
     if value is None:
         return None
     if isinstance(value, list):
-        return value if value else None
+        # Check if list contains a single JSON-encoded string (Supabase bug workaround)
+        result = []
+        for v in value:
+            if isinstance(v, str) and v.startswith('[') and v.endswith(']'):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        result.extend(parsed)
+                        continue
+                except json.JSONDecodeError:
+                    pass
+            if v and str(v).strip():
+                result.append(str(v).strip())
+        return result if result else None
     if isinstance(value, str):
         value = value.strip()
-        if not value or value == '{}':
+        # Handle empty cases
+        if not value or value == '{}' or value == '[]':
             return None
+        # Handle JSON array string
+        if value.startswith('[') and value.endswith(']'):
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    filtered = [str(v).strip() for v in parsed if v and str(v).strip()]
+                    return filtered if filtered else None
+            except json.JSONDecodeError:
+                pass
+        # Handle Postgres array format {a,b,c}
         if value.startswith('{') and value.endswith('}'):
             inner = value[1:-1]
             if not inner:
                 return None
-            items = [item.strip().strip('"') for item in inner.split(',')]
+            items = [item.strip().strip('"') for item in inner.split(',') if item.strip()]
             return items if items else None
         return [value]
     return None
@@ -92,6 +118,39 @@ def normalize_scholarship_data(data: dict) -> dict:
     """Normalize scholarship data from Supabase to ensure correct types."""
     if 'education_level' in data:
         data['education_level'] = parse_postgres_array(data.get('education_level'))
+    return data
+
+
+def parse_education_level_string(value) -> Optional[List[str]]:
+    """Parse education_level from drafts which may be comma-separated strings."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return value if value else None
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return None
+        # Handle Postgres array format
+        if value.startswith('{') and value.endswith('}'):
+            inner = value[1:-1]
+            if not inner:
+                return None
+            items = [item.strip().strip('"') for item in inner.split(',')]
+            return items if items else None
+        # Handle comma-separated values like "A-Level, Undergraduate, Master's & PhD"
+        if ',' in value:
+            items = [item.strip() for item in value.split(',') if item.strip()]
+            return items if items else None
+        # Single value
+        return [value]
+    return None
+
+
+def normalize_draft_data(data: dict) -> dict:
+    """Normalize draft data from Supabase to ensure correct types."""
+    if 'education_level' in data:
+        data['education_level'] = parse_education_level_string(data.get('education_level'))
     return data
 
 
@@ -210,6 +269,10 @@ def create_scholarship(scholarship: ScholarshipCreate):
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
     
+    # Handle education_level: null means "open to all", convert to empty array for Supabase
+    if data.get("education_level") is None:
+        data["education_level"] = []
+    
     # Remove null English proficiency fields (columns may not exist in database yet)
     english_fields = ["min_muet", "min_ielts", "min_spm_english"]
     for field in english_fields:
@@ -219,7 +282,7 @@ def create_scholarship(scholarship: ScholarshipCreate):
     result = supabase.table("scholarships").insert(data).execute()
     
     if result.data:
-        return result.data[0]
+        return normalize_scholarship_data(result.data[0])
     raise HTTPException(status_code=500, detail="Failed to create scholarship")
 
 
@@ -263,6 +326,10 @@ def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate)
     data = scholarship_data.model_dump()
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
+    
+    # Handle education_level: null means "open to all", convert to empty array for Supabase
+    if data.get("education_level") is None:
+        data["education_level"] = []
     
     # Remove null English proficiency fields (columns may not exist in database yet)
     english_fields = ["min_muet", "min_ielts", "min_spm_english"]
@@ -1579,7 +1646,7 @@ def list_drafts(status: Optional[str] = Query("pending", description="Filter by 
         q = q.order("id", desc=True)
         
         result = q.execute()
-        return result.data
+        return [normalize_draft_data(d) for d in result.data]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch drafts: {str(e)}")
 
@@ -1638,12 +1705,12 @@ def update_draft(draft_id: int, update_data: DraftUpdateRequest):
             update_dict["is_bumiputera_only"] = bool(raw_dict["is_bumiputera_only"])
         
         if not update_dict:
-            return draft_result.data[0]
+            return normalize_draft_data(draft_result.data[0])
         
         result = supabase.table("scholarship_drafts").update(update_dict).eq("id", draft_id).execute()
         
         if result.data:
-            return result.data[0]
+            return normalize_draft_data(result.data[0])
         raise HTTPException(status_code=500, detail="Failed to update draft")
     except HTTPException:
         raise
@@ -1664,12 +1731,17 @@ def publish_draft(draft_id: int):
         if draft["status"] != "pending":
             raise HTTPException(status_code=400, detail=f"Draft is already {draft['status']}")
         
+        # Parse education_level from draft (may be comma-separated string)
+        education_level = parse_education_level_string(draft.get("education_level"))
+        # Convert null to empty array for scholarships table (NOT NULL constraint)
+        education_level = education_level if education_level else []
+        
         scholarship_data = {
             "title": draft["title"] or "Untitled Scholarship",
             "provider": draft["provider"] or "Unknown Provider",
             "amount": draft["amount"] or "Contact provider",
             "deadline": draft["deadline"] or "2025-12-31",
-            "education_level": draft.get("education_level"),  # Allow null - matches all levels
+            "education_level": education_level,  # Empty array = open to all
             "url": draft["url"],
             "tags": [],
             "study_areas": draft.get("study_areas"),  # Allow null - matches all areas
