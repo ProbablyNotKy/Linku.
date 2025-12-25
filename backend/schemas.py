@@ -84,9 +84,16 @@ class ScholarshipMatchResponse(BaseModel):
     min_muet: Optional[float] = None
     min_ielts: Optional[float] = None
     min_spm_english: Optional[str] = None
+    # Match scoring
     similarity_score: float
+    match_score: Optional[float] = None  # Hybrid score (0-100%)
     is_eligible: bool = True
     ineligibility_reasons: Optional[List[str]] = None
+    # Match breakdown for UI
+    match_reasons: Optional[List[str]] = None  # Human-readable match reasons
+    score_breakdown: Optional[dict] = None  # Detailed score components
+    # Eligibility badges
+    eligibility_badges: Optional[dict] = None  # e.g., {"education": "Match", "state": "Match"}
 
 
 class ProfileSyncRequest(BaseModel):

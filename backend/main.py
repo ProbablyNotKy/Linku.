@@ -296,6 +296,396 @@ INCOME_BRACKETS = {
 
 
 # ============================================================================
+# STRICT MODE: EDUCATION PATHWAYS MAPPING
+# Defines which education levels can match which scholarship levels
+# ============================================================================
+
+# User education level -> Allowed scholarship education levels
+EDUCATION_PATHWAYS = {
+    # SPM/O-Level students can only match pre-tertiary programs
+    "SPM": ["Pre-U", "Foundation", "A-Levels", "Diploma", "Pre-University", "STPM", "Matriculation"],
+    "O-Level": ["Pre-U", "Foundation", "A-Levels", "Diploma", "Pre-University", "STPM", "Matriculation"],
+    "STPM": ["Pre-U", "Foundation", "A-Levels", "Diploma", "Pre-University", "Undergraduate", "Degree", "Bachelor"],
+    
+    # Diploma/Foundation students can only match undergraduate programs
+    "Diploma": ["Undergraduate", "Degree", "Bachelor", "Bachelor's"],
+    "Foundation": ["Undergraduate", "Degree", "Bachelor", "Bachelor's"],
+    "A-Levels": ["Undergraduate", "Degree", "Bachelor", "Bachelor's"],
+    "Pre-U": ["Undergraduate", "Degree", "Bachelor", "Bachelor's"],
+    "Matriculation": ["Undergraduate", "Degree", "Bachelor", "Bachelor's"],
+    
+    # Degree students can only match postgraduate programs
+    "Degree": ["Postgraduate", "Master", "Masters", "Master's", "PhD", "Doctorate", "Graduate"],
+    "Undergraduate": ["Postgraduate", "Master", "Masters", "Master's", "PhD", "Doctorate", "Graduate"],
+    "Bachelor": ["Postgraduate", "Master", "Masters", "Master's", "PhD", "Doctorate", "Graduate"],
+    "Bachelor's": ["Postgraduate", "Master", "Masters", "Master's", "PhD", "Doctorate", "Graduate"],
+    
+    # Postgraduate students can match PhD/Doctorate
+    "Master": ["PhD", "Doctorate", "Postdoctoral"],
+    "Masters": ["PhD", "Doctorate", "Postdoctoral"],
+    "Master's": ["PhD", "Doctorate", "Postdoctoral"],
+    "Postgraduate": ["PhD", "Doctorate", "Postdoctoral"],
+}
+
+
+def normalize_education_level(level: str) -> str:
+    """Normalize education level string for comparison."""
+    if not level:
+        return ""
+    normalized = level.strip().lower()
+    # Map common variations
+    mappings = {
+        "spm": "SPM",
+        "o-level": "O-Level",
+        "o level": "O-Level",
+        "stpm": "STPM",
+        "diploma": "Diploma",
+        "foundation": "Foundation",
+        "a-levels": "A-Levels",
+        "a levels": "A-Levels",
+        "a-level": "A-Levels",
+        "pre-u": "Pre-U",
+        "pre-university": "Pre-U",
+        "matriculation": "Matriculation",
+        "matrikulasi": "Matriculation",
+        "degree": "Degree",
+        "undergraduate": "Undergraduate",
+        "bachelor": "Bachelor",
+        "bachelor's": "Bachelor's",
+        "bachelors": "Bachelor's",
+        "postgraduate": "Postgraduate",
+        "master": "Master",
+        "masters": "Masters",
+        "master's": "Master's",
+        "phd": "PhD",
+        "doctorate": "PhD",
+    }
+    return mappings.get(normalized, level.strip())
+
+
+def check_education_pathway_eligibility(user_education: str, scholarship_education: str) -> tuple[bool, Optional[str]]:
+    """
+    Check if user's education level is eligible for the scholarship's target level.
+    Returns: (is_eligible, ineligibility_reason or None)
+    """
+    if not user_education or not scholarship_education:
+        return True, None  # If either is missing, don't filter
+    
+    user_level = normalize_education_level(user_education)
+    scholarship_level = normalize_education_level(scholarship_education)
+    
+    # Get allowed scholarship levels for this user's education
+    allowed_levels = EDUCATION_PATHWAYS.get(user_level, [])
+    
+    if not allowed_levels:
+        # Unknown user education level - allow matching to prevent false negatives
+        return True, None
+    
+    # Check if scholarship level matches any allowed level (case-insensitive partial match)
+    scholarship_lower = scholarship_level.lower()
+    for allowed in allowed_levels:
+        if allowed.lower() in scholarship_lower or scholarship_lower in allowed.lower():
+            return True, None
+    
+    # Also check if the exact user level is mentioned in the scholarship level
+    # (e.g., scholarship says "Diploma/Degree" and user is "Diploma")
+    if user_level.lower() in scholarship_lower:
+        return True, None
+    
+    return False, f"Education level mismatch: Your {user_level} level doesn't match {scholarship_education} scholarship"
+
+
+def check_study_area_overlap(user_areas: List[str], scholarship_areas: List[str]) -> tuple[bool, Optional[str]]:
+    """
+    Check if user's intended study areas overlap with scholarship's required areas.
+    Returns: (is_eligible, ineligibility_reason or None)
+    """
+    # If scholarship has no specific study areas or is "General", allow all
+    if not scholarship_areas or scholarship_areas == ["General"]:
+        return True, None
+    
+    # If user has no study areas specified, allow matching
+    if not user_areas:
+        return True, None
+    
+    # Normalize for comparison
+    user_set = set(area.lower().strip() for area in user_areas if area)
+    scholarship_set = set(area.lower().strip() for area in scholarship_areas if area and area.lower() != "general")
+    
+    # If scholarship is actually general after filtering, allow
+    if not scholarship_set:
+        return True, None
+    
+    # Check for any overlap
+    overlap = user_set.intersection(scholarship_set)
+    if overlap:
+        return True, None
+    
+    return False, f"Study area mismatch: Scholarship requires {', '.join(scholarship_areas)} but you're interested in {', '.join(user_areas)}"
+
+
+def is_scholarship_expired(deadline: str) -> bool:
+    """Check if scholarship deadline has passed."""
+    if not deadline:
+        return False
+    try:
+        from datetime import datetime
+        deadline_date = datetime.strptime(str(deadline), "%Y-%m-%d").date()
+        return deadline_date < datetime.now().date()
+    except (ValueError, TypeError):
+        return False
+
+
+# ============================================================================
+# CANDIDATE PERSONA GENERATION (GPT-4o)
+# Creates a "Semantic Resume" for better embedding matching
+# ============================================================================
+
+def generate_candidate_persona(profile: dict) -> str:
+    """
+    Use GPT-4o to generate a structured Semantic Resume from user profile.
+    Returns a structured persona string for embedding.
+    """
+    try:
+        bio = profile.get("bio_achievements", "")
+        education_level = profile.get("education_level", "")
+        study_areas = profile.get("study_areas", [])
+        state = profile.get("state", "")
+        cgpa = profile.get("cgpa")
+        spm_as = profile.get("spm_as")
+        household_income = profile.get("household_income", "")
+        is_bumiputera = profile.get("is_bumiputera", False)
+        
+        # Build context for GPT-4o
+        context_parts = []
+        if education_level:
+            context_parts.append(f"Education Level: {education_level}")
+        if study_areas:
+            context_parts.append(f"Study Areas: {', '.join(study_areas)}")
+        if state:
+            context_parts.append(f"State: {state}")
+        if cgpa:
+            context_parts.append(f"CGPA: {cgpa}")
+        if spm_as:
+            context_parts.append(f"SPM A's: {spm_as}")
+        if household_income:
+            context_parts.append(f"Income Bracket: {household_income}")
+        if is_bumiputera:
+            context_parts.append("Bumiputera Status: Yes")
+        
+        context = "\n".join(context_parts)
+        
+        prompt = f"""Based on this student profile, create a structured "Semantic Resume" that captures their essence for scholarship matching.
+
+PROFILE DATA:
+{context}
+
+BIO/ACHIEVEMENTS:
+{bio}
+
+OUTPUT FORMAT (fill in based on the profile):
+"A [Education Level] student from [State] with a [CGPA level - high/good/moderate] academic background, focused on [Study Areas/Goals]. [Key achievements or characteristics]. [Financial or demographic context if relevant]."
+
+Create a concise, impactful 1-2 sentence persona that captures the student's profile for scholarship matching. Focus on:
+1. Educational stage and aspirations
+2. Academic strengths
+3. Key achievements or leadership qualities
+4. Any special circumstances (financial need, demographic)
+
+Output ONLY the persona string, nothing else."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=200
+        )
+        
+        persona = response.choices[0].message.content.strip()
+        return persona if persona else create_fallback_persona(profile)
+    except Exception as e:
+        print(f"Error generating persona: {e}")
+        return create_fallback_persona(profile)
+
+
+def create_fallback_persona(profile: dict) -> str:
+    """Create a simple persona when GPT-4o is unavailable."""
+    parts = []
+    
+    education_level = profile.get("education_level", "")
+    if education_level:
+        parts.append(f"A {education_level} student")
+    else:
+        parts.append("A student")
+    
+    state = profile.get("state", "")
+    if state:
+        parts.append(f"from {state}")
+    
+    cgpa = profile.get("cgpa")
+    if cgpa:
+        if cgpa >= 3.5:
+            parts.append("with excellent academic standing")
+        elif cgpa >= 3.0:
+            parts.append("with good academic performance")
+        else:
+            parts.append("with developing academic performance")
+    
+    study_areas = profile.get("study_areas", [])
+    if study_areas:
+        parts.append(f"focused on {', '.join(study_areas[:2])}")
+    
+    bio = profile.get("bio_achievements", "")
+    if bio and len(bio) > 20:
+        parts.append(f". {bio[:150]}")
+    
+    household_income = profile.get("household_income", "")
+    if household_income == "B40":
+        parts.append(". Demonstrates financial need")
+    
+    return " ".join(parts)
+
+
+# ============================================================================
+# HYBRID SCORING ALGORITHM
+# Score = (0.5 × Similarity) + (0.3 × Academic_Weight) + (0.2 × SocioEconomic_Weight)
+# ============================================================================
+
+def calculate_academic_weight(profile: dict, scholarship: dict) -> float:
+    """
+    Calculate academic weight based on CGPA compared to scholarship requirements.
+    Returns a normalized score between 0 and 1.
+    """
+    user_cgpa = profile.get("cgpa")
+    min_cgpa = scholarship.get("min_cgpa")
+    
+    if user_cgpa is None:
+        return 0.5  # Neutral if no CGPA provided
+    
+    if min_cgpa is None:
+        # No minimum required - score based on absolute CGPA
+        return min(user_cgpa / 4.0, 1.0)
+    
+    # Calculate how much user exceeds the minimum
+    if user_cgpa >= min_cgpa:
+        # Bonus for exceeding requirement
+        excess = user_cgpa - min_cgpa
+        base_score = 0.7  # Base for meeting requirement
+        bonus = min(excess / 0.5, 0.3)  # Up to 0.3 bonus for exceeding by 0.5+
+        return min(base_score + bonus, 1.0)
+    else:
+        # Below requirement - reduced score
+        deficit = min_cgpa - user_cgpa
+        return max(0.5 - (deficit * 0.5), 0.0)
+
+
+def calculate_socioeconomic_weight(profile: dict, scholarship: dict) -> float:
+    """
+    Calculate socioeconomic weight based on B40 status and need-based scholarships.
+    Returns a normalized score between 0 and 1.
+    """
+    user_income = profile.get("household_income", "")
+    scholarship_income_max = scholarship.get("household_income_max")
+    is_bumiputera = profile.get("is_bumiputera", False)
+    scholarship_bumi_only = scholarship.get("is_bumiputera_only", False)
+    
+    score = 0.5  # Base score
+    
+    # B40 bonus for need-based scholarships
+    if user_income == "B40":
+        if scholarship_income_max is not None and scholarship_income_max <= 5000:
+            score += 0.3  # Strong match for need-based
+        else:
+            score += 0.1  # Small bonus for B40 status
+    elif user_income == "M40":
+        score += 0.05  # Slight bonus for M40
+    
+    # Bumiputera match bonus
+    if scholarship_bumi_only and is_bumiputera:
+        score += 0.15  # Bonus for matching bumiputera requirement
+    
+    return min(score, 1.0)
+
+
+def calculate_hybrid_score(
+    similarity_score: float,
+    profile: dict,
+    scholarship: dict
+) -> tuple[float, dict]:
+    """
+    Calculate the final hybrid match score using weighted formula.
+    Score = (0.5 × Similarity) + (0.3 × Academic_Weight) + (0.2 × SocioEconomic_Weight)
+    
+    Returns: (final_score, score_breakdown_dict)
+    """
+    academic_weight = calculate_academic_weight(profile, scholarship)
+    socioeconomic_weight = calculate_socioeconomic_weight(profile, scholarship)
+    
+    # Apply the weighted formula
+    weighted_similarity = similarity_score * 0.5
+    weighted_academic = academic_weight * 0.3
+    weighted_socioeconomic = socioeconomic_weight * 0.2
+    
+    final_score = weighted_similarity + weighted_academic + weighted_socioeconomic
+    
+    breakdown = {
+        "similarity_component": round(weighted_similarity * 100, 1),
+        "academic_component": round(weighted_academic * 100, 1),
+        "socioeconomic_component": round(weighted_socioeconomic * 100, 1),
+        "raw_similarity": round(similarity_score * 100, 1),
+        "academic_weight": round(academic_weight * 100, 1),
+        "socioeconomic_weight": round(socioeconomic_weight * 100, 1)
+    }
+    
+    return final_score, breakdown
+
+
+def generate_match_reasons(profile: dict, scholarship: dict, is_eligible: bool) -> List[str]:
+    """
+    Generate human-readable match reasons explaining why this scholarship matches.
+    """
+    reasons = []
+    
+    # Study area match
+    user_areas = profile.get("study_areas", [])
+    scholarship_areas = scholarship.get("study_areas", [])
+    if user_areas and scholarship_areas:
+        user_set = set(a.lower() for a in user_areas)
+        scholarship_set = set(a.lower() for a in scholarship_areas if a.lower() != "general")
+        overlap = user_set.intersection(scholarship_set)
+        if overlap:
+            matched_area = list(overlap)[0].title()
+            reasons.append(f"Matches your {matched_area} background")
+    
+    # B40 status match
+    if profile.get("household_income") == "B40":
+        if scholarship.get("household_income_max") is not None:
+            reasons.append("Matches your B40 status")
+    
+    # Bumiputera match
+    if scholarship.get("is_bumiputera_only") and profile.get("is_bumiputera"):
+        reasons.append("Matches Bumiputera eligibility")
+    
+    # State match
+    if scholarship.get("state_restriction") and profile.get("state") == scholarship.get("state_restriction"):
+        reasons.append(f"Open to {profile.get('state')} residents")
+    
+    # Academic strength
+    user_cgpa = profile.get("cgpa")
+    min_cgpa = scholarship.get("min_cgpa")
+    if user_cgpa and min_cgpa and user_cgpa >= min_cgpa + 0.3:
+        reasons.append("Strong academic match")
+    elif user_cgpa and min_cgpa and user_cgpa >= min_cgpa:
+        reasons.append("Meets academic requirements")
+    
+    # Education level match
+    if is_eligible and profile.get("education_level") and scholarship.get("education_level"):
+        reasons.append("Education level aligned")
+    
+    return reasons if reasons else ["Based on semantic profile matching"]
+
+
+# ============================================================================
 # ENGLISH PROFICIENCY EQUIVALENCE ENGINE
 # Maps MUET, IELTS, and SPM English to a Universal Scale (1-9) based on CEFR
 # ============================================================================
@@ -538,7 +928,18 @@ def get_user_profile(profile_id: str):
 
 @app.post("/profiles/match", response_model=List[ScholarshipMatchResponse])
 def match_with_profile(request: UserProfileMatchRequest):
-    """Match scholarships using a stored profile from Supabase."""
+    """
+    STRICT MODE Magic Match - Match scholarships using stored profile.
+    
+    Applies strict eligibility filters in this order:
+    1. Expired scholarship exclusion
+    2. Education pathway alignment
+    3. Study area overlap (0% if no match)
+    4. CGPA, SPM A's, income, state, Bumiputera, English requirements
+    
+    Then calculates hybrid score:
+    Score = (0.5 x Similarity) + (0.3 x Academic) + (0.2 x SocioEconomic)
+    """
     # Get profile from database
     profile_result = supabase.table("user_profiles").select("*").eq("id", request.profile_id).execute()
     
@@ -557,10 +958,8 @@ def match_with_profile(request: UserProfileMatchRequest):
         # Handle embedding format - it may come as string or list from Supabase
         embedding_data = profile["embedding"]
         if isinstance(embedding_data, str):
-            # It's already a string, use it directly (may be "[0.1,0.2,...]" format)
             embedding_str = embedding_data
         elif isinstance(embedding_data, list):
-            # It's a list, convert to string format for RPC
             embedding_str = "[" + ",".join(map(str, embedding_data)) + "]"
         else:
             raise HTTPException(status_code=500, detail="Invalid embedding format in profile")
@@ -569,7 +968,7 @@ def match_with_profile(request: UserProfileMatchRequest):
             "match_scholarships",
             {
                 "query_embedding": embedding_str,
-                "match_count": request.limit * 3
+                "match_count": request.limit * 5  # Fetch more to account for filtering
             }
         ).execute()
         
@@ -580,44 +979,109 @@ def match_with_profile(request: UserProfileMatchRequest):
         for row in result.data:
             is_eligible = True
             ineligibility_reasons = []
+            eligibility_badges = {}
             
-            # CGPA check
+            # ============ STRICT MODE GATEKEEPER FILTERS ============
+            
+            # 1. EXPIRED SCHOLARSHIP CHECK
+            if is_scholarship_expired(row.get("deadline")):
+                continue  # Skip expired scholarships entirely
+            
+            # 2. EDUCATION PATHWAY CHECK (Strict)
+            edu_eligible, edu_reason = check_education_pathway_eligibility(
+                profile.get("education_level"),
+                row.get("education_level")
+            )
+            if not edu_eligible:
+                is_eligible = False
+                ineligibility_reasons.append(edu_reason)
+                eligibility_badges["education"] = "Mismatch"
+            else:
+                eligibility_badges["education"] = "Match"
+            
+            # 3. STUDY AREA OVERLAP CHECK (Strict - 0% if no match)
+            study_eligible, study_reason = check_study_area_overlap(
+                profile.get("study_areas", []),
+                row.get("study_areas", [])
+            )
+            if not study_eligible:
+                is_eligible = False
+                ineligibility_reasons.append(study_reason)
+                eligibility_badges["study_area"] = "Mismatch"
+            else:
+                eligibility_badges["study_area"] = "Match"
+            
+            # ============ STANDARD ELIGIBILITY FILTERS ============
+            
+            # 4. CGPA check
             if profile.get("cgpa") is not None and row.get("min_cgpa") is not None:
                 if profile["cgpa"] < row["min_cgpa"]:
                     is_eligible = False
                     ineligibility_reasons.append(f"Requires minimum CGPA of {row['min_cgpa']}")
+                    eligibility_badges["cgpa"] = "Below Required"
+                else:
+                    eligibility_badges["cgpa"] = "Match"
             
-            # SPM A's check
+            # 5. SPM A's check
             if profile.get("spm_as") is not None and row.get("min_spm_as") is not None:
                 if profile["spm_as"] < row["min_spm_as"]:
                     is_eligible = False
                     ineligibility_reasons.append(f"Requires minimum {row['min_spm_as']} A's in SPM")
+                    eligibility_badges["spm"] = "Below Required"
+                else:
+                    eligibility_badges["spm"] = "Match"
             
-            # Household income check (convert bracket to RM)
+            # 6. Household income check (convert bracket to RM)
             if household_income_rm is not None and row.get("household_income_max") is not None:
                 if household_income_rm > row["household_income_max"]:
                     is_eligible = False
                     ineligibility_reasons.append(f"Household income exceeds RM {row['household_income_max']:,.0f} limit")
+                    eligibility_badges["income"] = "Exceeds Limit"
+                else:
+                    eligibility_badges["income"] = "Match"
             
-            # State restriction check
-            if row.get("state_restriction") and profile.get("state"):
-                if profile["state"] != row["state_restriction"]:
+            # 7. State restriction check
+            if row.get("state_restriction"):
+                if profile.get("state") and profile["state"] == row["state_restriction"]:
+                    eligibility_badges["state"] = "Match"
+                elif profile.get("state"):
                     is_eligible = False
                     ineligibility_reasons.append(f"Restricted to {row['state_restriction']} residents")
+                    eligibility_badges["state"] = "Mismatch"
             
-            # Bumiputera check
-            if row.get("is_bumiputera_only") and not profile.get("is_bumiputera"):
-                is_eligible = False
-                ineligibility_reasons.append("Restricted to Bumiputera applicants")
+            # 8. Bumiputera check
+            if row.get("is_bumiputera_only"):
+                if profile.get("is_bumiputera"):
+                    eligibility_badges["bumiputera"] = "Match"
+                else:
+                    is_eligible = False
+                    ineligibility_reasons.append("Restricted to Bumiputera applicants")
+                    eligibility_badges["bumiputera"] = "Required"
             
-            # English proficiency check using equivalence engine
+            # 9. English proficiency check using equivalence engine
             english_eligible, english_reason = check_english_eligibility(profile, row)
             if not english_eligible:
                 is_eligible = False
                 if english_reason:
                     ineligibility_reasons.append(english_reason)
+                eligibility_badges["english"] = "Below Required"
+            elif row.get("min_muet") or row.get("min_ielts") or row.get("min_spm_english"):
+                eligibility_badges["english"] = "Match"
             
-            similarity_score = row.get("similarity", 0) if is_eligible else 0
+            # ============ HYBRID SCORING ============
+            
+            raw_similarity = row.get("similarity", 0)
+            
+            if is_eligible:
+                # Calculate hybrid score for eligible candidates
+                hybrid_score, score_breakdown = calculate_hybrid_score(raw_similarity, profile, row)
+                match_score = round(hybrid_score * 100, 1)
+                match_reasons = generate_match_reasons(profile, row, is_eligible)
+            else:
+                # Ineligible candidates get 0% match score
+                match_score = 0.0
+                score_breakdown = None
+                match_reasons = None
             
             matches.append(ScholarshipMatchResponse(
                 id=row["id"],
@@ -637,13 +1101,17 @@ def match_with_profile(request: UserProfileMatchRequest):
                 min_muet=row.get("min_muet"),
                 min_ielts=row.get("min_ielts"),
                 min_spm_english=row.get("min_spm_english"),
-                similarity_score=similarity_score,
+                similarity_score=raw_similarity if is_eligible else 0,
+                match_score=match_score,
                 is_eligible=is_eligible,
-                ineligibility_reasons=ineligibility_reasons if ineligibility_reasons else None
+                ineligibility_reasons=ineligibility_reasons if ineligibility_reasons else None,
+                match_reasons=match_reasons,
+                score_breakdown=score_breakdown,
+                eligibility_badges=eligibility_badges
             ))
         
-        # Sort: eligible first (by similarity), then ineligible
-        matches.sort(key=lambda x: (not x.is_eligible, -x.similarity_score))
+        # Sort: eligible first (by hybrid match_score), then ineligible
+        matches.sort(key=lambda x: (not x.is_eligible, -(x.match_score or 0)))
         
         return matches[:request.limit]
     except Exception as e:
