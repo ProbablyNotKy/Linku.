@@ -215,6 +215,25 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/admin/drafts/:id", async (req, res) => {
+    try {
+      const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to update draft" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error updating draft:", error);
+      res.status(500).json({ error: "Failed to update draft" });
+    }
+  });
+
   app.post("/api/admin/drafts/:id/publish", async (req, res) => {
     try {
       const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}/publish`, {

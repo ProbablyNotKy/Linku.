@@ -181,6 +181,12 @@ def create_scholarship(scholarship: ScholarshipCreate):
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
     
+    # Remove null English proficiency fields (columns may not exist in database yet)
+    english_fields = ["min_muet", "min_ielts", "min_spm_english"]
+    for field in english_fields:
+        if field in data and data[field] is None:
+            del data[field]
+    
     result = supabase.table("scholarships").insert(data).execute()
     
     if result.data:
@@ -228,6 +234,12 @@ def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate)
     data = scholarship_data.model_dump()
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
+    
+    # Remove null English proficiency fields (columns may not exist in database yet)
+    english_fields = ["min_muet", "min_ielts", "min_spm_english"]
+    for field in english_fields:
+        if field in data and data[field] is None:
+            del data[field]
     
     result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
     
