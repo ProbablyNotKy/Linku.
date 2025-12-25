@@ -135,9 +135,9 @@ export default function Onboarding() {
         is_bumiputera: isBumiputera,
         study_areas: selectedStudyAreas,
         bio_achievements: bioAchievements,
-        muet_band: muetBand ? parseFloat(muetBand) : null,
+        muet_band: muetBand && muetBand !== "none" ? parseFloat(muetBand) : null,
         ielts_score: ieltsScore ? parseFloat(ieltsScore) : null,
-        spm_english_grade: spmEnglishGrade || null,
+        spm_english_grade: spmEnglishGrade && spmEnglishGrade !== "none" ? spmEnglishGrade : null,
       };
 
       const response = await createUserProfile(profileData);
@@ -327,7 +327,7 @@ export default function Onboarding() {
                           <SelectValue placeholder="Select Band" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Result Yet</SelectItem>
+                          <SelectItem value="none">No Result Yet</SelectItem>
                           <SelectItem value="1">Band 1</SelectItem>
                           <SelectItem value="2">Band 2</SelectItem>
                           <SelectItem value="3">Band 3</SelectItem>
@@ -362,7 +362,7 @@ export default function Onboarding() {
                           <SelectValue placeholder="Select Grade" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Result Yet</SelectItem>
+                          <SelectItem value="none">No Result Yet</SelectItem>
                           {SPM_ENGLISH_GRADES.map((grade) => (
                             <SelectItem key={grade} value={grade}>
                               {grade}
