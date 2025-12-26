@@ -1045,6 +1045,13 @@ def create_user_profile(profile: UserProfileCreate):
         embedding = generate_embedding(profile_text)
         data["embedding"] = embedding
         
+        # Remove English proficiency fields if columns don't exist in Supabase
+        # These fields can be added later when the columns are created
+        english_fields = ["muet_band", "ielts_score", "spm_english_grade"]
+        for field in english_fields:
+            if field in data:
+                del data[field]
+        
         result = supabase.table("user_profiles").insert(data).execute()
         
         if result.data:
