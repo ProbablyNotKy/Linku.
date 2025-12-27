@@ -47,13 +47,18 @@ export async function registerRoutes(
 
   app.post("/api/scholarships", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/scholarships/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
-        throw new Error(`FastAPI error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to create scholarship" });
       }
       const data = await response.json();
       res.json(data);
@@ -65,16 +70,21 @@ export async function registerRoutes(
 
   app.put("/api/scholarships/:id", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/scholarships/${req.params.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
         if (response.status === 404) {
           return res.status(404).json({ error: "Scholarship not found" });
         }
-        throw new Error(`FastAPI error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to update scholarship" });
       }
       const data = await response.json();
       res.json(data);
@@ -86,14 +96,20 @@ export async function registerRoutes(
 
   app.delete("/api/scholarships/:id", async (req, res) => {
     try {
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/scholarships/${req.params.id}`, {
         method: "DELETE",
+        headers,
       });
       if (!response.ok) {
         if (response.status === 404) {
           return res.status(404).json({ error: "Scholarship not found" });
         }
-        throw new Error(`FastAPI error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to delete scholarship" });
       }
       res.status(204).send();
     } catch (error) {
@@ -179,9 +195,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/scrape", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/admin/scrape`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
@@ -203,9 +223,14 @@ export async function registerRoutes(
       const queryString = params.toString();
       const url = `${FASTAPI_URL}/admin/drafts${queryString ? `?${queryString}` : ""}`;
       
-      const response = await fetch(url);
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(url, { headers });
       if (!response.ok) {
-        throw new Error(`FastAPI error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to fetch drafts" });
       }
       const data = await response.json();
       res.json(data);
@@ -217,9 +242,13 @@ export async function registerRoutes(
 
   app.put("/api/admin/drafts/:id", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
@@ -236,9 +265,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/drafts/:id/publish", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}/publish`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
@@ -254,8 +287,13 @@ export async function registerRoutes(
 
   app.delete("/api/admin/drafts/:id", async (req, res) => {
     try {
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/admin/drafts/${req.params.id}`, {
         method: "DELETE",
+        headers,
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));

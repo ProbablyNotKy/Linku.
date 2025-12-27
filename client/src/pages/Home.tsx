@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch } from "wouter";
 import { Scholarship, ScholarshipMatch } from "@shared/schema";
 import { fetchScholarships, matchWithProfile } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import ScholarshipCard from "@/components/ScholarshipCard";
 import LoadingState from "@/components/LoadingState";
@@ -33,6 +34,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function Home() {
   const searchParams = useSearch();
+  const { hasProfile, profileId, profileLoading } = useAuth();
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [matchedScholarships, setMatchedScholarships] = useState<ScholarshipMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,21 +44,15 @@ export default function Home() {
   const [selectedLevel, setSelectedLevel] = useState("");
   
   const [magicMatchEnabled, setMagicMatchEnabled] = useState(false);
-  const [hasProfile, setHasProfile] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   
   const debouncedQuery = useDebounce(searchQuery, 500);
 
   useEffect(() => {
-    const profileCreated = localStorage.getItem("ascendia_profile_created");
-    const profileId = localStorage.getItem("ascendia_profile_id");
-    const hasValidProfile = profileCreated === "true" && !!profileId;
-    setHasProfile(hasValidProfile);
-    
-    if (searchParams.includes("magic=true") && hasValidProfile) {
+    if (!profileLoading && searchParams.includes("magic=true") && hasProfile) {
       setMagicMatchEnabled(true);
     }
-  }, [searchParams]);
+  }, [searchParams, hasProfile, profileLoading]);
 
   const loadScholarships = useCallback(async (query?: string, level?: string) => {
     setIsLoading(true);
@@ -77,7 +73,6 @@ export default function Home() {
   }, []);
 
   const loadMatchedScholarships = useCallback(async () => {
-    const profileId = localStorage.getItem("ascendia_profile_id");
     if (!profileId) {
       setMagicMatchEnabled(false);
       return;
@@ -95,7 +90,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [profileId]);
 
   useEffect(() => {
     if (magicMatchEnabled && hasProfile) {

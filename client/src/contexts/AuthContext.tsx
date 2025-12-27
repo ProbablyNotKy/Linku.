@@ -1,11 +1,18 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  hasProfile: boolean;
+  profileId: string | null;
+  profileLoading: boolean;
+  isAdmin: boolean;
+  refreshProfile: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -13,26 +20,94 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearAscendiaLocalStorage() {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('ascendia_')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const checkUserProfile = useCallback(async (userId: string) => {
+    setProfileLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking user profile:', error);
+        setHasProfile(false);
+        setProfileId(null);
+      } else {
+        setHasProfile(!!data);
+        setProfileId(data?.id || null);
+      }
+    } catch (err) {
+      console.error('Failed to check profile:', err);
+      setHasProfile(false);
+      setProfileId(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      await checkUserProfile(user.id);
+    }
+  }, [user?.id, checkUserProfile]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      if (session?.user) {
+        const userEmail = session.user.email?.toLowerCase() || '';
+        setIsAdmin(ADMIN_EMAILS.includes(userEmail));
+        checkUserProfile(session.user.id);
+      } else {
+        setProfileLoading(false);
+        setHasProfile(false);
+        setIsAdmin(false);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      if (session?.user) {
+        const userEmail = session.user.email?.toLowerCase() || '';
+        setIsAdmin(ADMIN_EMAILS.includes(userEmail));
+        checkUserProfile(session.user.id);
+      } else {
+        setProfileLoading(false);
+        setHasProfile(false);
+        setProfileId(null);
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkUserProfile]);
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
@@ -51,11 +126,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    clearAscendiaLocalStorage();
+    setHasProfile(false);
+    setProfileId(null);
+    setIsAdmin(false);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      isLoading, 
+      hasProfile, 
+      profileId,
+      profileLoading, 
+      isAdmin,
+      refreshProfile,
+      signUp, 
+      signIn, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );

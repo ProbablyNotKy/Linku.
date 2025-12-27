@@ -35,7 +35,7 @@ const STEPS = [
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
-  const { session } = useAuth();
+  const { session, refreshProfile } = useAuth();
   const [step, setStep] = useState(1);
   
   // Step 1: Academics
@@ -137,11 +137,10 @@ export default function Onboarding() {
 
       // Pass access token if user is authenticated to link profile
       const accessToken = session?.access_token;
-      const response = await createUserProfile(profileData, accessToken);
+      await createUserProfile(profileData, accessToken);
       
-      // Store profile ID in localStorage for Magic Match
-      localStorage.setItem("ascendia_profile_id", response.id);
-      localStorage.setItem("ascendia_profile_created", "true");
+      // Refresh AuthContext profile state (populates profileId from Supabase)
+      await refreshProfile();
       
       setSuccess(true);
       

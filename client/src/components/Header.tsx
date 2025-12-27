@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Header() {
-  const { user, signOut, isLoading } = useAuth();
+  const { user, signOut, isLoading, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
 
   const handleSignOut = async () => {
@@ -40,14 +40,16 @@ export default function Header() {
             </p>
           </Link>
           <div className="flex-1 flex justify-end items-center gap-2">
-            <Link 
-              href="/admin"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              data-testid="link-admin"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </Link>
+            {isAdmin && (
+              <Link 
+                href="/admin"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                data-testid="link-admin"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Link>
+            )}
             {!isLoading && (
               user ? (
                 <Button 
