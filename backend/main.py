@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
@@ -8,6 +8,7 @@ from openai import OpenAI
 from markdownify import markdownify as md
 
 from supabase_client import supabase
+from auth import get_current_user, get_optional_user, AuthUser
 from constants import (
     MALAYSIAN_STATES, STUDY_AREAS, INCOME_BRACKETS, 
     get_income_rm_value, EDUCATION_LEVELS, SPM_ENGLISH_GRADES
@@ -268,7 +269,11 @@ def read_root():
 
 
 @app.post("/scholarships/", response_model=ScholarshipResponse)
-def create_scholarship(scholarship: ScholarshipCreate):
+def create_scholarship(
+    scholarship: ScholarshipCreate,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Create a new scholarship. Requires authentication."""
     data = scholarship.model_dump()
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
@@ -322,7 +327,12 @@ def get_scholarship(scholarship_id: int):
 
 
 @app.put("/scholarships/{scholarship_id}", response_model=ScholarshipResponse)
-def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate):
+def update_scholarship(
+    scholarship_id: int, 
+    scholarship_data: ScholarshipCreate,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Update a scholarship. Requires authentication."""
     existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
@@ -349,7 +359,11 @@ def update_scholarship(scholarship_id: int, scholarship_data: ScholarshipCreate)
 
 
 @app.delete("/scholarships/{scholarship_id}")
-def delete_scholarship(scholarship_id: int):
+def delete_scholarship(
+    scholarship_id: int,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Delete a scholarship. Requires authentication."""
     existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
@@ -1050,10 +1064,21 @@ def create_profile_text(profile: dict) -> str:
 
 
 @app.post("/profiles/", response_model=UserProfileResponse)
-def create_user_profile(profile: UserProfileCreate):
-    """Create a new user profile and generate embedding."""
+def create_user_profile(
+    profile: UserProfileCreate,
+    user: Optional[AuthUser] = Depends(get_optional_user)
+):
+    """Create a new user profile and generate embedding.
+    
+    If user is authenticated, links profile to their auth_user_id.
+    This allows profiles to persist across sessions.
+    """
     try:
         data = profile.model_dump()
+        
+        # Link to authenticated user if available
+        if user:
+            data["auth_user_id"] = user.user_id
         
         # Generate embedding from profile data
         profile_text = create_profile_text(data)
@@ -1095,6 +1120,32 @@ def get_user_profile(profile_id: str):
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Profile not found")
+    
+    profile_data = result.data[0]
+    return UserProfileResponse(
+        id=profile_data["id"],
+        education_level=profile_data.get("education_level"),
+        cgpa=profile_data.get("cgpa"),
+        spm_as=profile_data.get("spm_as"),
+        household_income=profile_data.get("household_income"),
+        state=profile_data.get("state"),
+        is_bumiputera=profile_data.get("is_bumiputera", False),
+        study_areas=profile_data.get("study_areas"),
+        bio_achievements=profile_data.get("bio_achievements"),
+        has_embedding=profile_data.get("embedding") is not None,
+        muet_band=profile_data.get("muet_band"),
+        ielts_score=profile_data.get("ielts_score"),
+        spm_english_grade=profile_data.get("spm_english_grade")
+    )
+
+
+@app.get("/profiles/me/current", response_model=UserProfileResponse)
+def get_my_profile(user: AuthUser = Depends(get_current_user)):
+    """Get the current authenticated user's profile."""
+    result = supabase.table("user_profiles").select("*").eq("auth_user_id", user.user_id).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Profile not found. Please complete onboarding first.")
     
     profile_data = result.data[0]
     return UserProfileResponse(
@@ -1485,7 +1536,11 @@ Remember: When in doubt, use null. Never fabricate requirements."""
 
 
 @app.post("/admin/scrape", response_model=ScrapeResponse)
-async def scrape_scholarship_urls(request: ScrapeRequest):
+async def scrape_scholarship_urls(
+    request: ScrapeRequest,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Scrape scholarship data from URLs. Requires authentication."""
     if not request.urls:
         raise HTTPException(status_code=400, detail="At least one URL is required")
     
@@ -1664,7 +1719,11 @@ async def scrape_scholarship_urls(request: ScrapeRequest):
 
 
 @app.get("/admin/drafts", response_model=List[DraftResponse])
-def list_drafts(status: Optional[str] = Query("pending", description="Filter by status: pending, approved, rejected")):
+def list_drafts(
+    status: Optional[str] = Query("pending", description="Filter by status: pending, approved, rejected"),
+    user: AuthUser = Depends(get_current_user)
+):
+    """List scholarship drafts. Requires authentication."""
     try:
         q = supabase.table("scholarship_drafts").select("*")
         if status:
@@ -1678,7 +1737,12 @@ def list_drafts(status: Optional[str] = Query("pending", description="Filter by 
 
 
 @app.put("/admin/drafts/{draft_id}", response_model=DraftResponse)
-def update_draft(draft_id: int, update_data: DraftUpdateRequest):
+def update_draft(
+    draft_id: int, 
+    update_data: DraftUpdateRequest,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Update a scholarship draft. Requires authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
         
@@ -1745,7 +1809,11 @@ def update_draft(draft_id: int, update_data: DraftUpdateRequest):
 
 
 @app.post("/admin/drafts/{draft_id}/publish", response_model=PublishResponse)
-def publish_draft(draft_id: int):
+def publish_draft(
+    draft_id: int,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Publish a draft to scholarships. Requires authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
         
@@ -1807,7 +1875,11 @@ def publish_draft(draft_id: int):
 
 
 @app.delete("/admin/drafts/{draft_id}")
-def reject_draft(draft_id: int):
+def reject_draft(
+    draft_id: int,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Reject a draft. Requires authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("id").eq("id", draft_id).execute()
         

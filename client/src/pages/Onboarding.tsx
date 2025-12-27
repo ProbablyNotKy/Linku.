@@ -25,6 +25,7 @@ import {
   INCOME_BRACKET_LIST,
   MUET_BANDS,
 } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STEPS = [
   { id: 1, title: "Academics", icon: GraduationCap },
@@ -34,6 +35,7 @@ const STEPS = [
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
+  const { session } = useAuth();
   const [step, setStep] = useState(1);
   
   // Step 1: Academics
@@ -133,7 +135,9 @@ export default function Onboarding() {
         spm_english_grade: spmEnglishGrade && spmEnglishGrade !== "none" ? spmEnglishGrade : null,
       };
 
-      const response = await createUserProfile(profileData);
+      // Pass access token if user is authenticated to link profile
+      const accessToken = session?.access_token;
+      const response = await createUserProfile(profileData, accessToken);
       
       // Store profile ID in localStorage for Magic Match
       localStorage.setItem("ascendia_profile_id", response.id);

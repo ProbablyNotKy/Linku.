@@ -28,7 +28,13 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
     - **Embeddings**: OpenAI's `text-embedding-3-small` generates vector embeddings for scholarships and user profiles, enabling semantic similarity matching.
     - **Chat**: GPT-4o powers the Socratic Mentor, guiding students through scholarship application processes using the STAR method.
     - **Matching Logic**: Employs a two-phase matching approach: hard filters for eligibility criteria followed by semantic similarity ranking.
-- **Admin Dashboard**: A hidden `/admin` route provides tools for managing scholarships, reviewing AI-extracted scholarship drafts, and monitoring system statistics.
+- **Admin Dashboard**: A protected `/admin` route provides tools for managing scholarships, reviewing AI-extracted scholarship drafts, and monitoring system statistics. **Requires Supabase authentication** - users must sign in to access admin features.
+- **Authentication**: Supabase Auth with email/password. JWT tokens are verified on the backend using `SUPABASE_JWT_SECRET`. Protected admin endpoints include:
+    - `POST /api/scholarships` (create)
+    - `PUT /api/scholarships/{id}` (update)
+    - `DELETE /api/scholarships/{id}` (delete)
+    - `POST /api/admin/scrape` (URL scraping)
+    - `GET/PUT/POST/DELETE /api/admin/drafts` (draft management)
 - **High-Precision Mode**: Incorporates detailed Malaysian eligibility criteria (CGPA, SPM A's, household income, state restriction, Bumiputera status) for accurate scholarship filtering.
 - **English Proficiency System**: A universal CEFR-based scale maps various English test scores (MUET, IELTS, SPM English) to a common standard, allowing cross-test matching.
 

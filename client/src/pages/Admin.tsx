@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { 
   Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft, 
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
-  X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon
+  X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon, LogIn
 } from "lucide-react";
 import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, EDUCATION_LEVELS } from "@shared/schema";
 import { 
@@ -20,8 +20,7 @@ import {
   Draft,
   DraftUpdate
 } from "@/lib/api";
-
-const ADMIN_KEY = "Ascendia2024";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FormData {
   title: string;
@@ -58,8 +57,9 @@ const emptyFormData: FormData = {
 };
 
 export default function Admin() {
-  const [adminKey, setAdminKey] = useState("");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, session, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,10 +87,14 @@ export default function Admin() {
   const [draftFormData, setDraftFormData] = useState<DraftUpdate>({});
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
+  const accessToken = session?.access_token;
+  const isAuthenticated = !!user;
+
   const loadDrafts = async () => {
+    if (!accessToken) return;
     setIsLoadingDrafts(true);
     try {
-      const data = await fetchDrafts("pending");
+      const data = await fetchDrafts("pending", accessToken);
       setDrafts(data);
     } catch (err) {
       console.error("Failed to load drafts:", err);
@@ -118,6 +122,7 @@ export default function Admin() {
 
   const handleScrape = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!accessToken) return;
     const validUrls = scrapeUrlList.filter(url => url.trim());
     if (validUrls.length === 0) return;
     
@@ -126,7 +131,7 @@ export default function Admin() {
     setErrorMessage("");
     
     try {
-      const result = await scrapeUrls(validUrls);
+      const result = await scrapeUrls(validUrls, accessToken);
       setSuccessMessage(result.message);
       setScrapeUrlList([""]);
       await loadDrafts();
@@ -167,11 +172,11 @@ export default function Admin() {
   };
 
   const handleSaveDraft = async () => {
-    if (!editingDraft) return;
+    if (!editingDraft || !accessToken) return;
     
     setIsSavingDraft(true);
     try {
-      await updateDraft(editingDraft.id, draftFormData);
+      await updateDraft(editingDraft.id, draftFormData, accessToken);
       setSuccessMessage("Draft updated successfully");
       closeEditDraft();
       await loadDrafts();
@@ -184,9 +189,10 @@ export default function Admin() {
   };
 
   const handlePublish = async (id: number) => {
+    if (!accessToken) return;
     setPublishingId(id);
     try {
-      const result = await publishDraft(id);
+      const result = await publishDraft(id, accessToken);
       setSuccessMessage(result.message);
       await loadDrafts();
       await loadScholarships();
@@ -199,9 +205,10 @@ export default function Admin() {
   };
 
   const handleReject = async (id: number) => {
+    if (!accessToken) return;
     setRejectingId(id);
     try {
-      await rejectDraft(id);
+      await rejectDraft(id, accessToken);
       setSuccessMessage("Draft rejected successfully");
       await loadDrafts();
     } catch (err) {
@@ -261,16 +268,6 @@ export default function Admin() {
     };
   }, [scholarships]);
 
-  const handleKeySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminKey === ADMIN_KEY) {
-      setIsAuthenticated(true);
-      setErrorMessage("");
-    } else {
-      setErrorMessage("Invalid admin key. Access denied.");
-    }
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -315,6 +312,7 @@ export default function Admin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!accessToken) return;
     setIsSubmitting(true);
     setSuccessMessage("");
     setErrorMessage("");
@@ -343,10 +341,10 @@ export default function Admin() {
       };
 
       if (editingId) {
-        await updateScholarship(editingId, scholarshipData);
+        await updateScholarship(editingId, scholarshipData, accessToken);
         setSuccessMessage("Scholarship updated successfully!");
       } else {
-        await createScholarship(scholarshipData);
+        await createScholarship(scholarshipData, accessToken);
         setSuccessMessage("Scholarship created successfully!");
       }
 
@@ -361,9 +359,10 @@ export default function Admin() {
   };
 
   const handleDelete = async (id: number) => {
+    if (!accessToken) return;
     setIsDeleting(true);
     try {
-      await deleteScholarship(id);
+      await deleteScholarship(id, accessToken);
       setSuccessMessage("Scholarship deleted successfully!");
       setDeleteConfirmId(null);
       await loadScholarships();
@@ -386,6 +385,17 @@ export default function Admin() {
     return new Date(deadline) < new Date();
   };
 
+  if (authLoading) {
+    return (
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <main className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
@@ -396,35 +406,20 @@ export default function Admin() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
-            Admin Access
+            Admin Access Required
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-center mb-6">
-            Enter the admin key to continue
+            You need to sign in with an authorized account to access the admin dashboard.
           </p>
 
-          <form onSubmit={handleKeySubmit}>
-            <input
-              type="password"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="Enter admin key..."
-              className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              data-testid="input-admin-key"
-            />
-            {errorMessage && (
-              <div className="flex items-center gap-2 text-red-600 text-sm mb-4">
-                <AlertCircle className="w-4 h-4" />
-                <span data-testid="text-error">{errorMessage}</span>
-              </div>
-            )}
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
-              data-testid="button-authenticate"
-            >
-              Access Dashboard
-            </button>
-          </form>
+          <button
+            onClick={() => setLocation("/login")}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            data-testid="button-go-to-login"
+          >
+            <LogIn className="w-5 h-5" />
+            Sign In
+          </button>
 
           <div className="mt-4 text-center">
             <Link 
@@ -447,7 +442,14 @@ export default function Admin() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-              <p className="text-indigo-200 mt-1">Manage Ascendia Scholarships</p>
+              <p className="text-indigo-200 mt-1">
+                Manage Ascendia Scholarships
+                {user?.email && (
+                  <span className="ml-2 text-indigo-300" data-testid="text-admin-email">
+                    ({user.email})
+                  </span>
+                )}
+              </p>
             </div>
             <Link
               href="/"

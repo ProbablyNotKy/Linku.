@@ -84,10 +84,10 @@ export interface ScholarshipCreate {
   min_spm_english?: string | null;
 }
 
-export async function createScholarship(data: ScholarshipCreate): Promise<Scholarship> {
+export async function createScholarship(data: ScholarshipCreate, accessToken?: string): Promise<Scholarship> {
   const response = await fetch("/api/scholarships", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -97,10 +97,10 @@ export async function createScholarship(data: ScholarshipCreate): Promise<Schola
   return response.json();
 }
 
-export async function updateScholarship(id: number, data: ScholarshipCreate): Promise<Scholarship> {
+export async function updateScholarship(id: number, data: ScholarshipCreate, accessToken?: string): Promise<Scholarship> {
   const response = await fetch(`/api/scholarships/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -110,9 +110,10 @@ export async function updateScholarship(id: number, data: ScholarshipCreate): Pr
   return response.json();
 }
 
-export async function deleteScholarship(id: number): Promise<void> {
+export async function deleteScholarship(id: number, accessToken?: string): Promise<void> {
   const response = await fetch(`/api/scholarships/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
     const error = await response.text();
@@ -214,10 +215,10 @@ export interface ScrapeResponse {
   message: string;
 }
 
-export async function scrapeUrls(urls: string[]): Promise<ScrapeResponse> {
+export async function scrapeUrls(urls: string[], accessToken?: string): Promise<ScrapeResponse> {
   const response = await fetch("/api/admin/scrape", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify({ urls }),
   });
   if (!response.ok) {
@@ -270,10 +271,10 @@ export interface DraftUpdate {
   min_spm_english?: string | null;
 }
 
-export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> {
+export async function fetchDrafts(status: string = "pending", accessToken?: string): Promise<Draft[]> {
   const response = await fetch(`/api/admin/drafts?status=${status}`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch drafts: ${response.status}`);
@@ -281,10 +282,10 @@ export async function fetchDrafts(status: string = "pending"): Promise<Draft[]> 
   return response.json();
 }
 
-export async function updateDraft(id: number, data: DraftUpdate): Promise<Draft> {
+export async function updateDraft(id: number, data: DraftUpdate, accessToken?: string): Promise<Draft> {
   const response = await fetch(`/api/admin/drafts/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -299,10 +300,10 @@ export interface PublishResponse {
   message: string;
 }
 
-export async function publishDraft(id: number): Promise<PublishResponse> {
+export async function publishDraft(id: number, accessToken?: string): Promise<PublishResponse> {
   const response = await fetch(`/api/admin/drafts/${id}/publish`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
@@ -311,9 +312,10 @@ export async function publishDraft(id: number): Promise<PublishResponse> {
   return response.json();
 }
 
-export async function rejectDraft(id: number): Promise<void> {
+export async function rejectDraft(id: number, accessToken?: string): Promise<void> {
   const response = await fetch(`/api/admin/drafts/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
@@ -354,10 +356,22 @@ export interface UserProfileResponse {
 
 // SPM_ENGLISH_GRADES is now exported from @shared/schema
 
-export async function createUserProfile(data: UserProfileCreate): Promise<UserProfileResponse> {
+// Helper to get auth headers if user is authenticated
+export function getAuthHeaders(accessToken?: string): HeadersInit {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+  return headers;
+}
+
+export async function createUserProfile(
+  data: UserProfileCreate, 
+  accessToken?: string
+): Promise<UserProfileResponse> {
   const response = await fetch("/api/profiles", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -371,6 +385,18 @@ export async function getUserProfile(profileId: string): Promise<UserProfileResp
   const response = await fetch(`/api/profiles/${profileId}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to get profile: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getMyProfile(accessToken: string): Promise<UserProfileResponse> {
+  const response = await fetch("/api/profiles/me/current", {
+    method: "GET",
+    headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
