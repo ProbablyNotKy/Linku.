@@ -1,6 +1,26 @@
-import { Scholarship, ScholarshipMatch, ScholarshipDraft, StudentProfile, MALAYSIAN_STATES, STUDY_AREAS } from "@shared/schema";
+import { 
+  Scholarship, 
+  ScholarshipMatch, 
+  ScholarshipDraft, 
+  StudentProfile, 
+  MALAYSIAN_STATES, 
+  STUDY_AREAS,
+  SPM_ENGLISH_GRADES,
+  INCOME_BRACKET_LIST,
+  EDUCATION_LEVELS,
+  MUET_BANDS,
+  getIncomeRmValue,
+} from "@shared/schema";
 
-export { MALAYSIAN_STATES, STUDY_AREAS };
+export { 
+  MALAYSIAN_STATES, 
+  STUDY_AREAS, 
+  SPM_ENGLISH_GRADES, 
+  INCOME_BRACKET_LIST, 
+  EDUCATION_LEVELS, 
+  MUET_BANDS,
+  getIncomeRmValue,
+};
 
 export interface FetchScholarshipsParams {
   query?: string;
@@ -332,8 +352,7 @@ export interface UserProfileResponse {
   spm_english_grade: string | null;
 }
 
-// Valid SPM English grades
-export const SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"] as const;
+// SPM_ENGLISH_GRADES is now exported from @shared/schema
 
 export async function createUserProfile(data: UserProfileCreate): Promise<UserProfileResponse> {
   const response = await fetch("/api/profiles", {

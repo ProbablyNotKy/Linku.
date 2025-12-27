@@ -2,21 +2,8 @@ from pydantic import BaseModel
 from datetime import date
 from typing import Optional, List
 
-# Malaysian states for validation
-MALAYSIAN_STATES = [
-    "Johor", "Kedah", "Kelantan", "Melaka", "Negeri Sembilan",
-    "Pahang", "Perak", "Perlis", "Pulau Pinang", "Sabah",
-    "Sarawak", "Selangor", "Terengganu", "Kuala Lumpur",
-    "Labuan", "Putrajaya"
-]
-
-# Standard Malaysian study areas
-STUDY_AREAS = [
-    "STEM", "Engineering", "Medicine", "Health Sciences", "Business",
-    "Accounting", "Law", "Education", "Arts & Humanities", "Social Sciences",
-    "Agriculture", "Architecture", "IT & Computer Science", "Aviation",
-    "Islamic Studies", "General"
-]
+# Import shared constants from constants.py
+from constants import MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES
 
 
 class ScholarshipCreate(BaseModel):

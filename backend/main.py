@@ -8,6 +8,10 @@ from openai import OpenAI
 from markdownify import markdownify as md
 
 from supabase_client import supabase
+from constants import (
+    MALAYSIAN_STATES, STUDY_AREAS, INCOME_BRACKETS, 
+    get_income_rm_value, EDUCATION_LEVELS, SPM_ENGLISH_GRADES
+)
 from schemas import (
     ScholarshipCreate, 
     ScholarshipResponse,
@@ -383,11 +387,12 @@ def sync_profile(request: ProfileSyncRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e)}")
 
 
-# Household income bracket to RM conversion
-INCOME_BRACKETS = {
-    "B40": 4850,    # Below RM 4,850/month
-    "M40": 10959,   # RM 4,850 - 10,959/month
-    "T20": 999999   # Above RM 10,959/month (no limit)
+# Household income bracket to RM conversion - use get_income_rm_value() from constants
+# Legacy dict for backward compatibility
+INCOME_BRACKET_RM = {
+    "B40": 5250,    # Upper limit for B40
+    "M40": 10959,   # Upper limit for M40  
+    "T20": 50000    # High value for T20 (no real limit)
 }
 
 
@@ -525,33 +530,43 @@ def check_education_pathway_eligibility(user_education: str, scholarship_educati
     return False, f"Education level mismatch: Your {user_level} level doesn't match {scholarship_education} scholarship"
 
 
-def check_study_area_overlap(user_areas: List[str], scholarship_areas: List[str]) -> tuple[bool, Optional[str]]:
+def check_study_area_overlap(user_areas: List[str], scholarship_areas: List[str]) -> tuple[bool, Optional[str], float]:
     """
     Check if user's intended study areas overlap with scholarship's required areas.
-    Returns: (is_eligible, ineligibility_reason or None)
+    Returns: (is_eligible, ineligibility_reason or None, overlap_score)
+    
+    Now returns overlap_score (0.0 to 1.0) for "Generic Penalty" instead of hard fail.
+    - 1.0 = full match or scholarship is open to all
+    - 0.5 = user has no study areas (generic penalty)
+    - 0.0 = no overlap between specific areas
     """
-    # If scholarship has no specific study areas or is "General", allow all
+    # If scholarship has no specific study areas or is "General", allow all with full score
     if not scholarship_areas or scholarship_areas == ["General"]:
-        return True, None
+        return True, None, 1.0
     
-    # If user has no study areas specified, allow matching
-    if not user_areas:
-        return True, None
-    
-    # Normalize for comparison
-    user_set = set(area.lower().strip() for area in user_areas if area)
+    # Normalize scholarship areas
     scholarship_set = set(area.lower().strip() for area in scholarship_areas if area and area.lower() != "general")
     
-    # If scholarship is actually general after filtering, allow
+    # If scholarship is actually general after filtering, allow with full score
     if not scholarship_set:
-        return True, None
+        return True, None, 1.0
+    
+    # If user has no study areas specified, apply "Generic Penalty" (50% score) instead of hard fail
+    if not user_areas:
+        return True, "Note: Your study areas aren't specified - consider updating your profile", 0.5
+    
+    # Normalize user areas for comparison
+    user_set = set(area.lower().strip() for area in user_areas if area)
     
     # Check for any overlap
     overlap = user_set.intersection(scholarship_set)
     if overlap:
-        return True, None
+        # Calculate overlap percentage
+        overlap_score = len(overlap) / len(scholarship_set)
+        return True, None, min(1.0, overlap_score + 0.2)  # Boost partial matches slightly
     
-    return False, f"Study area mismatch: Scholarship requires {', '.join(scholarship_areas)} but you're interested in {', '.join(user_areas)}"
+    # No overlap - still eligible but with 0 study area score (will affect hybrid score)
+    return False, f"Study area mismatch: Scholarship requires {', '.join(scholarship_areas)} but you're interested in {', '.join(user_areas)}", 0.0
 
 
 def is_scholarship_expired(deadline: str) -> bool:
@@ -1045,6 +1060,10 @@ def create_user_profile(profile: UserProfileCreate):
         embedding = generate_embedding(profile_text)
         data["embedding"] = embedding
         
+        # Convert income bracket to numeric RM value for matching
+        if data.get("household_income"):
+            data["household_income_value"] = get_income_rm_value(data["household_income"])
+        
         result = supabase.table("user_profiles").insert(data).execute()
         
         if result.data:
@@ -1121,7 +1140,8 @@ def match_with_profile(request: UserProfileMatchRequest):
         raise HTTPException(status_code=400, detail="Profile has no embedding. Please recreate your profile.")
     
     # Convert household income bracket to RM value for comparison
-    household_income_rm = INCOME_BRACKETS.get(profile.get("household_income"), None)
+    # First try to use stored numeric value, fallback to bracket conversion
+    household_income_rm = profile.get("household_income_value") or get_income_rm_value(profile.get("household_income", ""))
     
     try:
         # Handle embedding format - it may come as string or list from Supabase
@@ -1169,15 +1189,21 @@ def match_with_profile(request: UserProfileMatchRequest):
             else:
                 eligibility_badges["education"] = "Match"
             
-            # 3. STUDY AREA OVERLAP CHECK (Strict - 0% if no match)
-            study_eligible, study_reason = check_study_area_overlap(
+            # 3. STUDY AREA OVERLAP CHECK (Generic Penalty instead of hard fail)
+            study_eligible, study_reason, study_overlap_score = check_study_area_overlap(
                 profile.get("study_areas", []),
                 row.get("study_areas", [])
             )
             if not study_eligible:
+                # No overlap - mark as ineligible but include in results with reason
                 is_eligible = False
                 ineligibility_reasons.append(study_reason)
                 eligibility_badges["study_area"] = "Mismatch"
+            elif study_overlap_score < 1.0:
+                # Partial match or generic penalty - still eligible but note it
+                if study_reason:
+                    ineligibility_reasons.append(study_reason)
+                eligibility_badges["study_area"] = "Partial" if study_overlap_score > 0.5 else "Generic"
             else:
                 eligibility_badges["study_area"] = "Match"
             

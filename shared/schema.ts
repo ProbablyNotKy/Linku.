@@ -3,6 +3,18 @@ import { pgTable, text, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Re-export constants from centralized constants file
+export {
+  MALAYSIAN_STATES,
+  STUDY_AREAS,
+  EDUCATION_LEVELS,
+  SPM_ENGLISH_GRADES,
+  INCOME_BRACKETS,
+  INCOME_BRACKET_LIST,
+  getIncomeRmValue,
+  MUET_BANDS,
+} from "./constants";
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -16,28 +28,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-
-// Malaysian states
-export const MALAYSIAN_STATES = [
-  "Johor", "Kedah", "Kelantan", "Melaka", "Negeri Sembilan",
-  "Pahang", "Perak", "Perlis", "Pulau Pinang", "Sabah",
-  "Sarawak", "Selangor", "Terengganu", "Kuala Lumpur",
-  "Labuan", "Putrajaya"
-] as const;
-
-// Standard Malaysian study areas
-export const STUDY_AREAS = [
-  "STEM", "Engineering", "Medicine", "Health Sciences", "Business",
-  "Accounting", "Law", "Education", "Arts & Humanities", "Social Sciences",
-  "Agriculture", "Architecture", "IT & Computer Science", "Aviation",
-  "Islamic Studies", "General"
-] as const;
-
-// Education levels for multi-select
-export const EDUCATION_LEVELS = [
-  "SPM", "STPM", "Foundation", "Diploma", "Degree", "Bachelor", 
-  "Undergraduate", "Master's", "Masters", "PhD", "Postgraduate"
-] as const;
 
 // Scholarship type matching FastAPI backend
 export interface Scholarship {
@@ -139,5 +129,4 @@ export interface StudentProfile {
   spm_english_grade?: string | null;
 }
 
-// Valid SPM English grades
-export const SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"] as const;
+// SPM_ENGLISH_GRADES is now exported from constants.ts

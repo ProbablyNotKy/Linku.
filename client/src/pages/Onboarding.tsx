@@ -16,22 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createUserProfile, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES } from "@/lib/api";
-
-const EDUCATION_LEVELS = [
-  { value: "SPM", label: "SPM" },
-  { value: "STPM", label: "STPM" },
-  { value: "Diploma", label: "Diploma" },
-  { value: "Undergraduate", label: "Undergraduate / Degree" },
-  { value: "Postgraduate", label: "Postgraduate / Masters" },
-  { value: "PhD", label: "PhD" },
-];
-
-const INCOME_BRACKETS = [
-  { value: "B40", label: "B40 (Below RM 4,850/month)" },
-  { value: "M40", label: "M40 (RM 4,850 - 10,959/month)" },
-  { value: "T20", label: "T20 (Above RM 10,959/month)" },
-];
+import { 
+  createUserProfile, 
+  MALAYSIAN_STATES, 
+  STUDY_AREAS, 
+  SPM_ENGLISH_GRADES,
+  EDUCATION_LEVELS,
+  INCOME_BRACKET_LIST,
+  MUET_BANDS,
+} from "@/lib/api";
 
 const STEPS = [
   { id: 1, title: "Academics", icon: GraduationCap },
@@ -406,7 +399,7 @@ export default function Onboarding() {
                         <SelectValue placeholder="Select income bracket" />
                       </SelectTrigger>
                       <SelectContent>
-                        {INCOME_BRACKETS.map((bracket) => (
+                        {INCOME_BRACKET_LIST.map((bracket) => (
                           <SelectItem key={bracket.value} value={bracket.value}>
                             {bracket.label}
                           </SelectItem>
