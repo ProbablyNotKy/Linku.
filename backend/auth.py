@@ -4,15 +4,22 @@ Verifies JWTs issued by Supabase Auth.
 """
 import os
 import jwt
-from typing import Optional
+from typing import Optional, Set
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
+ADMIN_EMAILS_RAW = os.environ.get("ADMIN_EMAILS", "")
 
 if not SUPABASE_JWT_SECRET:
     print("[Auth] Warning: SUPABASE_JWT_SECRET not set. Authentication will fail.")
+
+def get_admin_emails() -> Set[str]:
+    """Get set of admin emails from environment variable (comma-separated)."""
+    if not ADMIN_EMAILS_RAW:
+        return set()
+    return {email.strip().lower() for email in ADMIN_EMAILS_RAW.split(",") if email.strip()}
 
 
 class AuthUser(BaseModel):
@@ -105,10 +112,32 @@ async def require_admin(
 ) -> AuthUser:
     """
     Dependency that requires admin role.
+    Checks if user's email is in the ADMIN_EMAILS environment variable.
     """
-    if user.role != "admin" and user.role != "service_role":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    return user
+    admin_emails = get_admin_emails()
+    user_email = (user.email or "").lower()
+    
+    if admin_emails and user_email in admin_emails:
+        return user
+    
+    if user.role in ("admin", "service_role"):
+        return user
+    
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Admin access required. Contact the administrator to request access."
+    )
+
+
+def is_admin(user: AuthUser) -> bool:
+    """Check if a user has admin privileges."""
+    admin_emails = get_admin_emails()
+    user_email = (user.email or "").lower()
+    
+    if admin_emails and user_email in admin_emails:
+        return True
+    
+    if user.role in ("admin", "service_role"):
+        return True
+    
+    return False
