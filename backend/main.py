@@ -8,7 +8,7 @@ from openai import OpenAI
 from markdownify import markdownify as md
 
 from supabase_client import supabase
-from auth import get_current_user, get_optional_user, AuthUser
+from auth import get_current_user, get_optional_user, require_admin, AuthUser
 from constants import (
     MALAYSIAN_STATES, STUDY_AREAS, INCOME_BRACKETS, 
     get_income_rm_value, EDUCATION_LEVELS, SPM_ENGLISH_GRADES
@@ -271,9 +271,9 @@ def read_root():
 @app.post("/scholarships/", response_model=ScholarshipResponse)
 def create_scholarship(
     scholarship: ScholarshipCreate,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Create a new scholarship. Requires authentication."""
+    """Create a new scholarship. Requires admin authentication."""
     data = scholarship.model_dump()
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
@@ -330,9 +330,9 @@ def get_scholarship(scholarship_id: int):
 def update_scholarship(
     scholarship_id: int, 
     scholarship_data: ScholarshipCreate,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Update a scholarship. Requires authentication."""
+    """Update a scholarship. Requires admin authentication."""
     existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
@@ -361,9 +361,9 @@ def update_scholarship(
 @app.delete("/scholarships/{scholarship_id}")
 def delete_scholarship(
     scholarship_id: int,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Delete a scholarship. Requires authentication."""
+    """Delete a scholarship. Requires admin authentication."""
     existing = supabase.table("scholarships").select("id").eq("id", scholarship_id).execute()
     if not existing.data:
         raise HTTPException(status_code=404, detail="Scholarship not found")
@@ -1538,9 +1538,9 @@ Remember: When in doubt, use null. Never fabricate requirements."""
 @app.post("/admin/scrape", response_model=ScrapeResponse)
 async def scrape_scholarship_urls(
     request: ScrapeRequest,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Scrape scholarship data from URLs. Requires authentication."""
+    """Scrape scholarship data from URLs. Requires admin authentication."""
     if not request.urls:
         raise HTTPException(status_code=400, detail="At least one URL is required")
     
@@ -1721,9 +1721,9 @@ async def scrape_scholarship_urls(
 @app.get("/admin/drafts", response_model=List[DraftResponse])
 def list_drafts(
     status: Optional[str] = Query("pending", description="Filter by status: pending, approved, rejected"),
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """List scholarship drafts. Requires authentication."""
+    """List scholarship drafts. Requires admin authentication."""
     try:
         q = supabase.table("scholarship_drafts").select("*")
         if status:
@@ -1740,9 +1740,9 @@ def list_drafts(
 def update_draft(
     draft_id: int, 
     update_data: DraftUpdateRequest,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Update a scholarship draft. Requires authentication."""
+    """Update a scholarship draft. Requires admin authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
         
@@ -1811,9 +1811,9 @@ def update_draft(
 @app.post("/admin/drafts/{draft_id}/publish", response_model=PublishResponse)
 def publish_draft(
     draft_id: int,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Publish a draft to scholarships. Requires authentication."""
+    """Publish a draft to scholarships. Requires admin authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("*").eq("id", draft_id).execute()
         
@@ -1877,9 +1877,9 @@ def publish_draft(
 @app.delete("/admin/drafts/{draft_id}")
 def reject_draft(
     draft_id: int,
-    user: AuthUser = Depends(get_current_user)
+    user: AuthUser = Depends(require_admin)
 ):
-    """Reject a draft. Requires authentication."""
+    """Reject a draft. Requires admin authentication."""
     try:
         draft_result = supabase.table("scholarship_drafts").select("id").eq("id", draft_id).execute()
         

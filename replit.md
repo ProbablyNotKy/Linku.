@@ -35,6 +35,7 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
     - `DELETE /api/scholarships/{id}` (delete)
     - `POST /api/admin/scrape` (URL scraping)
     - `GET/PUT/POST/DELETE /api/admin/drafts` (draft management)
+- **Role-Based Admin Access**: Admin privileges are controlled via the `ADMIN_EMAILS` environment variable. Set a comma-separated list of email addresses that should have admin access (e.g., `admin@example.com,user@example.com`). Users with JWT role `admin` or `service_role` are also granted admin access. Non-admin users receive a 403 Forbidden response when attempting to access admin endpoints.
 - **High-Precision Mode**: Incorporates detailed Malaysian eligibility criteria (CGPA, SPM A's, household income, state restriction, Bumiputera status) for accurate scholarship filtering.
 - **English Proficiency System**: A universal CEFR-based scale maps various English test scores (MUET, IELTS, SPM English) to a common standard, allowing cross-test matching.
 

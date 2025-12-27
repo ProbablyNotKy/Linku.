@@ -91,8 +91,8 @@ export async function createScholarship(data: ScholarshipCreate, accessToken?: s
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to create scholarship: ${error}`);
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to create scholarship"}`);
   }
   return response.json();
 }
@@ -104,8 +104,8 @@ export async function updateScholarship(id: number, data: ScholarshipCreate, acc
     body: JSON.stringify(data),
   });
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to update scholarship: ${error}`);
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to update scholarship"}`);
   }
   return response.json();
 }
@@ -116,8 +116,8 @@ export async function deleteScholarship(id: number, accessToken?: string): Promi
     headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to delete scholarship: ${error}`);
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to delete scholarship"}`);
   }
 }
 
@@ -223,7 +223,7 @@ export async function scrapeUrls(urls: string[], accessToken?: string): Promise<
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || errorData.detail || `Failed to scrape URLs: ${response.status}`);
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to scrape URLs"}`);
   }
   return response.json();
 }
@@ -277,7 +277,8 @@ export async function fetchDrafts(status: string = "pending", accessToken?: stri
     headers: getAuthHeaders(accessToken),
   });
   if (!response.ok) {
-    throw new Error(`Failed to fetch drafts: ${response.status}`);
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to fetch drafts"}`);
   }
   return response.json();
 }
@@ -290,7 +291,7 @@ export async function updateDraft(id: number, data: DraftUpdate, accessToken?: s
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || errorData.detail || `Failed to update draft: ${response.status}`);
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to update draft"}`);
   }
   return response.json();
 }
@@ -307,7 +308,7 @@ export async function publishDraft(id: number, accessToken?: string): Promise<Pu
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || errorData.detail || `Failed to publish draft: ${response.status}`);
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to publish draft"}`);
   }
   return response.json();
 }
@@ -319,7 +320,7 @@ export async function rejectDraft(id: number, accessToken?: string): Promise<voi
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(errorData.error || errorData.detail || `Failed to reject draft: ${response.status}`);
+    throw new Error(`[${response.status}] ${errorData.error || errorData.detail || "Failed to reject draft"}`);
   }
 }
 

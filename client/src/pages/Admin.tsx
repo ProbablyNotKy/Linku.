@@ -86,9 +86,18 @@ export default function Admin() {
   const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
   const [draftFormData, setDraftFormData] = useState<DraftUpdate>({});
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isForbidden, setIsForbidden] = useState(false);
 
   const accessToken = session?.access_token;
   const isAuthenticated = !!user;
+
+  const handleApiError = (err: unknown) => {
+    if (err instanceof Error && (err.message.includes("[403]") || err.message.includes("403"))) {
+      setIsForbidden(true);
+      return true;
+    }
+    return false;
+  };
 
   const loadDrafts = async () => {
     if (!accessToken) return;
@@ -98,7 +107,9 @@ export default function Admin() {
       setDrafts(data);
     } catch (err) {
       console.error("Failed to load drafts:", err);
-      setErrorMessage("Failed to load drafts");
+      if (!handleApiError(err)) {
+        setErrorMessage("Failed to load drafts");
+      }
     } finally {
       setIsLoadingDrafts(false);
     }
@@ -137,7 +148,9 @@ export default function Admin() {
       await loadDrafts();
     } catch (err) {
       console.error("Failed to scrape URLs:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to scrape URLs");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to scrape URLs");
+      }
     } finally {
       setIsScrapingUrl(false);
     }
@@ -182,7 +195,9 @@ export default function Admin() {
       await loadDrafts();
     } catch (err) {
       console.error("Failed to save draft:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to save draft");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to save draft");
+      }
     } finally {
       setIsSavingDraft(false);
     }
@@ -198,7 +213,9 @@ export default function Admin() {
       await loadScholarships();
     } catch (err) {
       console.error("Failed to publish draft:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to publish draft");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to publish draft");
+      }
     } finally {
       setPublishingId(null);
     }
@@ -213,7 +230,9 @@ export default function Admin() {
       await loadDrafts();
     } catch (err) {
       console.error("Failed to reject draft:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to reject draft");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to reject draft");
+      }
     } finally {
       setRejectingId(null);
     }
@@ -352,7 +371,9 @@ export default function Admin() {
       await loadScholarships();
     } catch (err) {
       console.error("Failed to save scholarship:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to save scholarship");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to save scholarship");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -368,7 +389,9 @@ export default function Admin() {
       await loadScholarships();
     } catch (err) {
       console.error("Failed to delete scholarship:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Failed to delete scholarship");
+      if (!handleApiError(err)) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to delete scholarship");
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -430,6 +453,40 @@ export default function Admin() {
               Back to Home
             </Link>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (isForbidden) {
+    return (
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md">
+          <div className="flex items-center justify-center mb-6">
+            <div className="bg-red-100 dark:bg-red-900 rounded-full p-4">
+              <Shield className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
+            Admin Access Required
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-center mb-4">
+            You are signed in as:
+          </p>
+          <p className="text-gray-900 dark:text-white text-center font-medium mb-4" data-testid="text-user-email">
+            {user?.email}
+          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-center mb-6">
+            This account does not have admin privileges. Please contact the administrator to request access.
+          </p>
+
+          <Link 
+            href="/"
+            className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-center"
+            data-testid="link-back-home"
+          >
+            Back to Home
+          </Link>
         </div>
       </main>
     );
