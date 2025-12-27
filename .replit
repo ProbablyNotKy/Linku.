@@ -46,4 +46,4 @@ waitForPort = 5000
 [userenv]
 
 [userenv.shared]
-VITE_ADMIN_EMAILS = "${ADMIN_EMAILS}"
+VITE_ADMIN_EMAILS = "ascendiaeducation@gmail.com"

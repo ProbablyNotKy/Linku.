@@ -57,11 +57,18 @@ const emptyFormData: FormData = {
 };
 
 export default function Admin() {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, session, isLoading: authLoading, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      setLocation("/");
+    }
+  }, [authLoading, isAdmin, setLocation]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
