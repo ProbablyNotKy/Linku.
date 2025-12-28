@@ -43,13 +43,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkUserProfile = useCallback(async (userId: string) => {
     setProfileLoading(true);
     try {
-      const { data, error } = await supabase
+      // Try to find profile linked to this auth user
+      // First try auth_user_id column, then fall back to user_id if column doesn't exist
+      let data = null;
+      let error = null;
+      
+      const result = await supabase
         .from('user_profiles')
         .select('id')
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      if (error) {
+      data = result.data;
+      error = result.error;
+      
+      // If auth_user_id column doesn't exist, try user_id column
+      if (error?.code === '42703') {
+        const fallbackResult = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+        
+        // If user_id also fails, just skip profile check
+        if (error?.code === '42703') {
+          console.log('No auth column found in user_profiles table, skipping profile check');
+          setHasProfile(false);
+          setProfileId(null);
+          setProfileLoading(false);
+          return;
+        }
+      }
+      
+      if (error && error.code !== '42703') {
         console.error('Error checking user profile:', error);
         setHasProfile(false);
         setProfileId(null);

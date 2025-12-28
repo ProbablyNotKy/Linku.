@@ -14,6 +14,9 @@ ADMIN_EMAILS_RAW = os.environ.get("ADMIN_EMAILS", "")
 
 if not SUPABASE_JWT_SECRET:
     print("[Auth] Warning: SUPABASE_JWT_SECRET not set. Authentication will fail.")
+else:
+    # Log secret length for debugging (don't log the actual secret)
+    print(f"[Auth] SUPABASE_JWT_SECRET configured (length: {len(SUPABASE_JWT_SECRET)})")
 
 def get_admin_emails() -> Set[str]:
     """Get set of admin emails from environment variable (comma-separated)."""
@@ -54,11 +57,14 @@ async def get_current_user(
         )
     
     try:
+        # Supabase uses HS256 with the JWT secret
+        # Try decoding with options to handle various token formats
         decoded_token = jwt.decode(
             credentials.credentials,
             SUPABASE_JWT_SECRET,
             algorithms=["HS256"],
-            audience="authenticated"
+            audience="authenticated",
+            options={"verify_aud": True}
         )
         
         user_id = decoded_token.get("sub")
@@ -85,6 +91,14 @@ async def get_current_user(
             detail="Invalid token audience"
         )
     except jwt.InvalidTokenError as e:
+        # Log more details for debugging
+        print(f"[Auth] JWT decode failed: {type(e).__name__}: {str(e)}")
+        try:
+            # Try to decode without verification to see the header
+            unverified = jwt.decode(credentials.credentials, options={"verify_signature": False})
+            print(f"[Auth] Token header algorithm: {jwt.get_unverified_header(credentials.credentials)}")
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid authentication token: {str(e)}"
