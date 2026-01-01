@@ -309,9 +309,14 @@ export async function registerRoutes(
   // User Profile endpoints
   app.post("/api/profiles", async (req, res) => {
     try {
+      // Forward Authorization header to link profile to authenticated user
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/profiles/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
