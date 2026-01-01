@@ -1,21 +1,41 @@
 """
 Supabase JWT authentication middleware for FastAPI.
-Verifies JWTs issued by Supabase Auth.
+Verifies JWTs issued by Supabase Auth using JWKS for ES256 tokens.
 """
 import os
 import jwt
+import httpx
+from jwt import PyJWKClient
 from typing import Optional, Set
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET")
+SUPABASE_URL = os.environ.get("VITE_SUPABASE_URL", os.environ.get("SUPABASE_URL", ""))
 ADMIN_EMAILS_RAW = os.environ.get("ADMIN_EMAILS", "")
 
-if not SUPABASE_JWT_SECRET:
-    print("[Auth] Warning: SUPABASE_JWT_SECRET not set. Authentication will fail.")
-else:
-    # Log secret length for debugging (don't log the actual secret)
+# JWKS client for ES256 token verification
+_jwks_client: Optional[PyJWKClient] = None
+
+def get_jwks_client() -> Optional[PyJWKClient]:
+    """Get or create the JWKS client for Supabase token verification."""
+    global _jwks_client
+    if _jwks_client is None and SUPABASE_URL:
+        jwks_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        try:
+            _jwks_client = PyJWKClient(jwks_url)
+            print(f"[Auth] JWKS client initialized for: {jwks_url}")
+        except Exception as e:
+            print(f"[Auth] Failed to initialize JWKS client: {e}")
+    return _jwks_client
+
+if not SUPABASE_JWT_SECRET and not SUPABASE_URL:
+    print("[Auth] Warning: Neither SUPABASE_JWT_SECRET nor SUPABASE_URL set. Authentication will fail.")
+elif SUPABASE_URL:
+    print(f"[Auth] Using JWKS from Supabase URL for ES256 token verification")
+    get_jwks_client()  # Initialize on startup
+elif SUPABASE_JWT_SECRET:
     print(f"[Auth] SUPABASE_JWT_SECRET configured (length: {len(SUPABASE_JWT_SECRET)})")
 
 def get_admin_emails() -> Set[str]:
@@ -57,15 +77,40 @@ async def get_current_user(
         )
     
     try:
-        # Supabase uses HS256 with the JWT secret
-        # Try decoding with options to handle various token formats
-        decoded_token = jwt.decode(
-            credentials.credentials,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-            options={"verify_aud": True}
-        )
+        # Get the token header to determine which algorithm to use
+        token_header = jwt.get_unverified_header(credentials.credentials)
+        algorithm = token_header.get("alg", "HS256")
+        
+        if algorithm == "ES256":
+            # Use JWKS for ES256 tokens
+            jwks_client = get_jwks_client()
+            if not jwks_client:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="JWKS client not configured for ES256 tokens"
+                )
+            signing_key = jwks_client.get_signing_key_from_jwt(credentials.credentials)
+            decoded_token = jwt.decode(
+                credentials.credentials,
+                signing_key.key,
+                algorithms=["ES256"],
+                audience="authenticated",
+                options={"verify_aud": True}
+            )
+        else:
+            # Fall back to HS256 with shared secret
+            if not SUPABASE_JWT_SECRET:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="JWT secret not configured for HS256 tokens"
+                )
+            decoded_token = jwt.decode(
+                credentials.credentials,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+                options={"verify_aud": True}
+            )
         
         user_id = decoded_token.get("sub")
         if not user_id:

@@ -271,7 +271,9 @@ export default function Admin() {
     return scholarships.filter(s => 
       s.title.toLowerCase().includes(query) ||
       s.provider.toLowerCase().includes(query) ||
-      (s.education_level && s.education_level.some(level => level.toLowerCase().includes(query)))
+      (s.education_level && Array.isArray(s.education_level) && s.education_level.some(level => 
+        typeof level === 'string' && level.toLowerCase().includes(query)
+      ))
     );
   }, [scholarships, searchQuery]);
 
@@ -1086,27 +1088,27 @@ export default function Admin() {
                     </label>
                     <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700">
                       {EDUCATION_LEVELS.map((level) => (
-                        <label key={level} className="flex items-center gap-2 text-sm">
+                        <label key={level.value} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
-                            checked={formData.education_levels.includes(level)}
+                            checked={formData.education_levels.includes(level.value)}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setFormData(prev => ({ 
                                   ...prev, 
-                                  education_levels: [...prev.education_levels, level] 
+                                  education_levels: [...prev.education_levels, level.value] 
                                 }));
                               } else {
                                 setFormData(prev => ({ 
                                   ...prev, 
-                                  education_levels: prev.education_levels.filter(l => l !== level) 
+                                  education_levels: prev.education_levels.filter(l => l !== level.value) 
                                 }));
                               }
                             }}
                             className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            data-testid={`checkbox-level-${level.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                            data-testid={`checkbox-level-${level.value.toLowerCase().replace(/[^a-z]/g, '-')}`}
                           />
-                          <span className="text-gray-700 dark:text-gray-300">{level}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{level.label}</span>
                         </label>
                       ))}
                     </div>
@@ -1451,22 +1453,22 @@ export default function Admin() {
                     </label>
                     <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 max-h-40 overflow-y-auto">
                       {EDUCATION_LEVELS.map((level) => (
-                        <label key={level} className="flex items-center gap-2 text-sm">
+                        <label key={level.value} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
-                            checked={(draftFormData.education_level || []).includes(level)}
+                            checked={(draftFormData.education_level || []).includes(level.value)}
                             onChange={(e) => {
                               const currentLevels = draftFormData.education_level || [];
                               if (e.target.checked) {
-                                setDraftFormData({...draftFormData, education_level: [...currentLevels, level]});
+                                setDraftFormData({...draftFormData, education_level: [...currentLevels, level.value]});
                               } else {
-                                setDraftFormData({...draftFormData, education_level: currentLevels.filter(l => l !== level)});
+                                setDraftFormData({...draftFormData, education_level: currentLevels.filter(l => l !== level.value)});
                               }
                             }}
                             className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            data-testid={`checkbox-draft-level-${level.toLowerCase().replace(/[^a-z]/g, '-')}`}
+                            data-testid={`checkbox-draft-level-${level.value.toLowerCase().replace(/[^a-z]/g, '-')}`}
                           />
-                          <span className="text-gray-700 dark:text-gray-300">{level}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{level.label}</span>
                         </label>
                       ))}
                     </div>
