@@ -152,11 +152,15 @@ async def get_optional_user(
     Returns None if no token provided (for public routes that may benefit from auth).
     """
     if credentials is None:
+        print("[Auth] get_optional_user: No credentials provided")
         return None
     
     try:
-        return await get_current_user(credentials)
-    except HTTPException:
+        user = await get_current_user(credentials)
+        print(f"[Auth] get_optional_user: Successfully authenticated user {user.user_id}")
+        return user
+    except HTTPException as e:
+        print(f"[Auth] get_optional_user: Authentication failed - {e.detail}")
         return None
 
 

@@ -1100,8 +1100,12 @@ def create_user_profile(
         data = profile.model_dump()
         
         # Link to authenticated user if available
+        print(f"[Profile] Creating profile, user authenticated: {user is not None}")
         if user:
+            print(f"[Profile] Linking profile to auth_user_id: {user.user_id}")
             data["auth_user_id"] = user.user_id
+        else:
+            print("[Profile] WARNING: No authenticated user, profile will not be linked to account")
         
         # Generate embedding from profile data
         profile_text = create_profile_text(data)
