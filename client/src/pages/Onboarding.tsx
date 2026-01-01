@@ -26,6 +26,7 @@ import {
   MUET_BANDS,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const STEPS = [
   { id: 1, title: "Academics", icon: GraduationCap },
@@ -135,8 +136,13 @@ export default function Onboarding() {
         spm_english_grade: spmEnglishGrade && spmEnglishGrade !== "none" ? spmEnglishGrade : null,
       };
 
-      // Pass access token if user is authenticated to link profile
-      const accessToken = session?.access_token;
+      // Get fresh session directly from Supabase to ensure we have a valid token
+      // The context session might be stale, so we fetch it directly
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const accessToken = freshSession?.access_token || session?.access_token;
+      
+      console.log("[Onboarding] Creating profile with token:", accessToken ? "present" : "missing");
+      
       const createdProfile = await createUserProfile(profileData, accessToken);
       
       // Set the profile ID directly from the API response (bypasses broken column lookup)
