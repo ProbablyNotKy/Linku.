@@ -35,7 +35,7 @@ const STEPS = [
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
-  const { session, refreshProfile } = useAuth();
+  const { session, setProfileDirectly } = useAuth();
   const [step, setStep] = useState(1);
   
   // Step 1: Academics
@@ -137,10 +137,12 @@ export default function Onboarding() {
 
       // Pass access token if user is authenticated to link profile
       const accessToken = session?.access_token;
-      await createUserProfile(profileData, accessToken);
+      const createdProfile = await createUserProfile(profileData, accessToken);
       
-      // Refresh AuthContext profile state (populates profileId from Supabase)
-      await refreshProfile();
+      // Set the profile ID directly from the API response (bypasses broken column lookup)
+      if (createdProfile?.id) {
+        setProfileDirectly(createdProfile.id);
+      }
       
       setSuccess(true);
       

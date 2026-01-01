@@ -291,7 +291,19 @@ def create_scholarship(
     result = supabase.table("scholarships").insert(data).execute()
     
     if result.data:
-        return normalize_scholarship_data(result.data[0])
+        scholarship_data = result.data[0]
+        scholarship_id = scholarship_data.get("id")
+        
+        # Generate embedding for the new scholarship
+        try:
+            text = create_scholarship_text(scholarship_data)
+            embedding = generate_embedding(text)
+            supabase.table("scholarships").update({"embedding": embedding}).eq("id", scholarship_id).execute()
+            scholarship_data["embedding"] = embedding
+        except Exception as embed_error:
+            print(f"Warning: Failed to generate embedding for scholarship {scholarship_id}: {embed_error}")
+        
+        return normalize_scholarship_data(scholarship_data)
     raise HTTPException(status_code=500, detail="Failed to create scholarship")
 
 
@@ -354,7 +366,18 @@ def update_scholarship(
     result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
     
     if result.data:
-        return normalize_scholarship_data(result.data[0])
+        updated_data = result.data[0]
+        
+        # Regenerate embedding when scholarship content changes
+        try:
+            text = create_scholarship_text(updated_data)
+            embedding = generate_embedding(text)
+            supabase.table("scholarships").update({"embedding": embedding}).eq("id", scholarship_id).execute()
+            updated_data["embedding"] = embedding
+        except Exception as embed_error:
+            print(f"Warning: Failed to regenerate embedding for scholarship {scholarship_id}: {embed_error}")
+        
+        return normalize_scholarship_data(updated_data)
     raise HTTPException(status_code=500, detail="Failed to update scholarship")
 
 

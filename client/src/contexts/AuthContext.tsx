@@ -13,6 +13,7 @@ interface AuthContextType {
   profileLoading: boolean;
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
+  setProfileDirectly: (id: string) => void;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -100,6 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id, checkUserProfile]);
 
+  // Direct setter for profile - used after onboarding when we have the profile ID from API response
+  const setProfileDirectly = useCallback((id: string) => {
+    setProfileId(id);
+    setHasProfile(true);
+    setProfileLoading(false);
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -171,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileLoading, 
       isAdmin,
       refreshProfile,
+      setProfileDirectly,
       signUp, 
       signIn, 
       signOut 
