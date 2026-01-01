@@ -70,12 +70,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": 'Bearer realm="auth_required"'},
         )
     
-    if not SUPABASE_JWT_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server authentication not configured"
-        )
-    
     try:
         # Get the token header to determine which algorithm to use
         token_header = jwt.get_unverified_header(credentials.credentials)
