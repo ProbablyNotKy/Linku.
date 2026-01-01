@@ -138,10 +138,47 @@ export default function Onboarding() {
 
       // Get fresh session directly from Supabase to ensure we have a valid token
       // The context session might be stale, so we fetch it directly
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      const accessToken = freshSession?.access_token || session?.access_token;
+      let accessToken: string | undefined;
       
-      console.log("[Onboarding] Creating profile with token:", accessToken ? "present" : "missing");
+      // Check for any indication user should be authenticated:
+      // - Supabase getUser() returns a user
+      // - OR context has a session (user was logged in at some point)
+      const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+      const hasAuthSignal = !!supabaseUser || !!session;
+      
+      // First try to get current session
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      accessToken = freshSession?.access_token;
+      
+      // If no session but we have auth signals, always try to refresh
+      if (!accessToken && hasAuthSignal) {
+        console.log("[Onboarding] Auth signal present but no session, attempting refresh...");
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error("[Onboarding] Session refresh failed:", refreshError);
+        }
+        accessToken = refreshedSession?.access_token;
+      }
+      
+      // Fall back to context session as last resort
+      if (!accessToken && session?.access_token) {
+        console.log("[Onboarding] Using context session as fallback");
+        accessToken = session.access_token;
+      }
+      
+      console.log("[Onboarding] Creating profile - hasAuthSignal:", hasAuthSignal, "token:", accessToken ? "present" : "missing");
+      
+      // If we have ANY auth signal but couldn't get a valid token, block submission
+      // This prevents creating unlinked profiles for users who should be authenticated
+      if (hasAuthSignal && !accessToken) {
+        throw new Error("Unable to verify your session. Please try logging out and back in.");
+      }
+      
+      // Only allow anonymous profile creation if there's genuinely no auth signal
+      // (user never logged in or was signed out cleanly)
+      if (!accessToken) {
+        console.log("[Onboarding] Creating anonymous profile (no auth signal)");
+      }
       
       const createdProfile = await createUserProfile(profileData, accessToken);
       
