@@ -4,6 +4,10 @@ import { supabase } from '@/lib/supabase';
 
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
 
+// Debug logging for admin access - check console in production
+console.log('[AuthContext] VITE_ADMIN_EMAILS:', import.meta.env.VITE_ADMIN_EMAILS);
+console.log('[AuthContext] Parsed ADMIN_EMAILS:', ADMIN_EMAILS);
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -116,7 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         const userEmail = session.user.email?.toLowerCase() || '';
-        setIsAdmin(ADMIN_EMAILS.includes(userEmail));
+        const isAdminCheck = ADMIN_EMAILS.includes(userEmail);
+        console.log('[AuthContext] Admin check - userEmail:', userEmail, 'isAdmin:', isAdminCheck, 'adminEmails:', ADMIN_EMAILS);
+        setIsAdmin(isAdminCheck);
         checkUserProfile(session.user.id);
       } else {
         setProfileLoading(false);
@@ -132,7 +138,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         const userEmail = session.user.email?.toLowerCase() || '';
-        setIsAdmin(ADMIN_EMAILS.includes(userEmail));
+        const isAdminCheck = ADMIN_EMAILS.includes(userEmail);
+        console.log('[AuthContext] Admin check (state change) - userEmail:', userEmail, 'isAdmin:', isAdminCheck, 'adminEmails:', ADMIN_EMAILS);
+        setIsAdmin(isAdminCheck);
         checkUserProfile(session.user.id);
       } else {
         setProfileLoading(false);
