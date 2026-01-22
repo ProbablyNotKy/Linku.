@@ -41,6 +41,8 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
 
 ### Feature Specifications
 - **Scholarship Discovery**: Search and filter scholarships by title and education level, with responsive display.
+- **Scholarship Detail View**: Clicking on a scholarship card opens a sliding drawer panel from the right with full details including rich text descriptions (markdown rendered), eligibility requirements, study areas, and an "Apply Now" button. Expired scholarships show "Application Closed" instead.
+- **Rich Text Descriptions**: Scholarships can have detailed markdown descriptions edited via MDEditor in the admin panel, rendered with react-markdown in the detail drawer.
 - **AI Matching**: Students complete a 3-step onboarding wizard to create a profile (academics, eligibility, interests), which generates an embedding for personalized scholarship recommendations.
 - **Socratic Mentor Chat**: An AI assistant helps students develop scholarship application essays and responses using guiding questions based on the STAR method.
 - **Admin Discovery Agent**: An AI-powered tool extracts scholarship data from URLs, creates drafts for admin review, and helps populate the database with new opportunities.
