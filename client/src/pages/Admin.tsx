@@ -6,6 +6,7 @@ import {
   X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon, LogIn
 } from "lucide-react";
 import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, EDUCATION_LEVELS } from "@shared/schema";
+import MDEditor from "@uiw/react-md-editor";
 import { 
   fetchScholarships, 
   createScholarship, 
@@ -37,6 +38,7 @@ interface FormData {
   state_restriction: string;
   is_bumiputera_only: boolean;
   ai_matching_context: string;
+  detailed_description: string;
 }
 
 const emptyFormData: FormData = {
@@ -54,6 +56,7 @@ const emptyFormData: FormData = {
   state_restriction: "",
   is_bumiputera_only: false,
   ai_matching_context: "",
+  detailed_description: "",
 };
 
 export default function Admin() {
@@ -326,6 +329,7 @@ export default function Admin() {
       state_restriction: scholarship.state_restriction || "",
       is_bumiputera_only: scholarship.is_bumiputera_only || false,
       ai_matching_context: scholarship.ai_matching_context || "",
+      detailed_description: scholarship.detailed_description || "",
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -366,6 +370,7 @@ export default function Admin() {
         state_restriction: formData.state_restriction || null,
         is_bumiputera_only: formData.is_bumiputera_only,
         ai_matching_context: formData.ai_matching_context || null,
+        detailed_description: formData.detailed_description || null,
       };
 
       if (editingId) {
@@ -1292,6 +1297,33 @@ export default function Admin() {
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     This helps the AI match students more accurately
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Detailed Description (Rich Text)
+                  </label>
+                  <div data-color-mode="light" className="dark:hidden">
+                    <MDEditor
+                      value={formData.detailed_description}
+                      onChange={(value) => setFormData({...formData, detailed_description: value || ""})}
+                      preview="edit"
+                      height={200}
+                      data-testid="editor-detailed-description"
+                    />
+                  </div>
+                  <div data-color-mode="dark" className="hidden dark:block">
+                    <MDEditor
+                      value={formData.detailed_description}
+                      onChange={(value) => setFormData({...formData, detailed_description: value || ""})}
+                      preview="edit"
+                      height={200}
+                      data-testid="editor-detailed-description-dark"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Use markdown for formatting: **bold**, *italic*, # headers, - bullet points
                   </p>
                 </div>
               </div>

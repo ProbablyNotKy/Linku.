@@ -46,6 +46,7 @@ export interface Scholarship {
   state_restriction?: string | null;
   is_bumiputera_only?: boolean;
   ai_matching_context?: string | null;
+  detailed_description?: string | null;  // Rich text/markdown description
   // English proficiency requirements
   min_muet?: number | null;
   min_ielts?: number | null;

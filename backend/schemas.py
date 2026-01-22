@@ -21,6 +21,7 @@ class ScholarshipCreate(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
     ai_matching_context: Optional[str] = None
+    detailed_description: Optional[str] = None  # Rich text/markdown description
     # English proficiency requirements
     min_muet: Optional[float] = None  # MUET Band (1-5)
     min_ielts: Optional[float] = None  # IELTS score (0-9)
@@ -43,6 +44,7 @@ class ScholarshipResponse(BaseModel):
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
     ai_matching_context: Optional[str] = None
+    detailed_description: Optional[str] = None  # Rich text/markdown description
     # English proficiency requirements
     min_muet: Optional[float] = None
     min_ielts: Optional[float] = None
@@ -67,6 +69,7 @@ class ScholarshipMatchResponse(BaseModel):
     household_income_max: Optional[float] = None
     state_restriction: Optional[str] = None
     is_bumiputera_only: Optional[bool] = False
+    detailed_description: Optional[str] = None  # Rich text/markdown description
     # English proficiency requirements
     min_muet: Optional[float] = None
     min_ielts: Optional[float] = None

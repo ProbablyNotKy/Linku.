@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Scholarship, ScholarshipMatch } from "@shared/schema";
-import { Calendar, Building2, GraduationCap, ExternalLink, AlertCircle, XCircle, Sparkles, Info } from "lucide-react";
+import { Calendar, Building2, GraduationCap, XCircle, Sparkles, Info, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import MatchInsightsSheet from "./MatchInsightsSheet";
+import ScholarshipDetailDrawer from "./ScholarshipDetailDrawer";
 
 interface ScholarshipCardProps {
   scholarship: Scholarship | ScholarshipMatch;
@@ -54,6 +55,7 @@ function getMatchScoreBgColor(score: number): string {
 
 export default function ScholarshipCard({ scholarship, showMatchInfo = false }: ScholarshipCardProps) {
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   
   const deadlineStatus = getDeadlineStatus(scholarship.deadline);
   const isExpired = deadlineStatus === "expired";
@@ -63,15 +65,24 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
   const matchScore = matchData?.match_score ?? 0;
   const isEligible = matchData?.is_eligible ?? true;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) {
+      return;
+    }
+    setDetailDrawerOpen(true);
+  };
+
   return (
     <>
       <Card 
-        className={`flex flex-col h-full transition-all ${
+        className={`flex flex-col h-full transition-all cursor-pointer hover-elevate ${
           isExpired ? "opacity-60" : ""
         } ${isUrgent && !isExpired ? "border-red-300 dark:border-red-800" : ""} ${
           matchData && !isEligible && !isExpired ? "opacity-70" : ""
         }`}
         data-testid={`card-scholarship-${scholarship.id}`}
+        onClick={handleCardClick}
       >
         <div className="p-6 flex-1 flex flex-col">
           {matchData && (
@@ -194,21 +205,14 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
           </div>
         </div>
 
-        <div className="px-6 pb-6 pt-2">
-          <Button
-            className="w-full"
-            style={{ backgroundColor: "#4f46e5" }}
-            disabled={isExpired}
-            data-testid={`button-apply-${scholarship.id}`}
-            onClick={() => {
-              if (scholarship.url && !isExpired) {
-                window.open(scholarship.url, "_blank");
-              }
-            }}
+        <div className="px-6 pb-4 pt-2">
+          <div 
+            className="flex items-center justify-center gap-1 text-sm text-muted-foreground"
+            data-testid={`hint-view-details-${scholarship.id}`}
           >
-            {isExpired ? "Application Closed" : "Apply Now"}
-            {!isExpired && <ExternalLink className="w-4 h-4 ml-2" />}
-          </Button>
+            <span>View Details</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
         </div>
       </Card>
       
@@ -219,6 +223,12 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
           onClose={() => setInsightsOpen(false)}
         />
       )}
+      
+      <ScholarshipDetailDrawer
+        scholarship={scholarship}
+        isOpen={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+      />
     </>
   );
 }
