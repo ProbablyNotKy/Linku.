@@ -5,6 +5,7 @@ import { fetchScholarships, matchWithProfile } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import ScholarshipCard from "@/components/ScholarshipCard";
+import ScholarshipDetailPanel from "@/components/ScholarshipDetailPanel";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import ChatComponent from "@/components/ChatComponent";
@@ -45,6 +46,7 @@ export default function Home() {
   
   const [magicMatchEnabled, setMagicMatchEnabled] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [selectedScholarship, setSelectedScholarship] = useState<Scholarship | ScholarshipMatch | null>(null);
   
   const debouncedQuery = useDebounce(searchQuery, 500);
 
@@ -115,174 +117,195 @@ export default function Home() {
   const hasFilters = searchQuery.trim() || selectedLevel;
   const displayScholarships = magicMatchEnabled ? matchedScholarships : scholarships;
 
+  const handleViewDetails = (scholarship: Scholarship | ScholarshipMatch) => {
+    setSelectedScholarship(scholarship);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedScholarship(null);
+  };
+
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground" data-testid="text-section-title">
-                  {magicMatchEnabled ? "Your Best Matches" : "Available Scholarships"}
-                </h2>
-                <p className="text-muted-foreground mt-1">
-                  {magicMatchEnabled 
-                    ? "Scholarships ranked by AI based on your profile"
-                    : "Discover opportunities that match your educational journey"}
-                </p>
-              </div>
-              {!isLoading && !error && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Search className="w-4 h-4" />
-                  <span data-testid="text-scholarship-count">
-                    {displayScholarships.length} opportunities found
-                  </span>
+      <div className="flex-1 flex overflow-hidden">
+        <div className={`transition-all duration-300 overflow-auto ${selectedScholarship ? "w-1/2" : "w-full"}`}>
+          <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${selectedScholarship ? "max-w-full" : "max-w-7xl"}`}>
+            <div className="mb-8">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground" data-testid="text-section-title">
+                      {magicMatchEnabled ? "Your Best Matches" : "Available Scholarships"}
+                    </h2>
+                    <p className="text-muted-foreground mt-1">
+                      {magicMatchEnabled 
+                        ? "Scholarships ranked by AI based on your profile"
+                        : "Discover opportunities that match your educational journey"}
+                    </p>
+                  </div>
+                  {!isLoading && !error && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Search className="w-4 h-4" />
+                      <span data-testid="text-scholarship-count">
+                        {displayScholarships.length} opportunities found
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-                {!magicMatchEnabled && (
-                  <>
-                    <div className="relative flex-1 w-full sm:w-auto sm:min-w-[280px]">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        placeholder="Search scholarships..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                        data-testid="input-search"
+                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+                    {!magicMatchEnabled && (
+                      <>
+                        <div className="relative flex-1 w-full sm:w-auto sm:min-w-[280px]">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="Search scholarships..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-search"
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Filter className="w-4 h-4 text-muted-foreground" />
+                          <Select 
+                            value={selectedLevel || "all"} 
+                            onValueChange={(val) => setSelectedLevel(val === "all" ? "" : val)}
+                          >
+                            <SelectTrigger className="w-[180px]" data-testid="select-level">
+                              <SelectValue placeholder="Education Level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Levels</SelectItem>
+                              <SelectItem value="SPM">SPM</SelectItem>
+                              <SelectItem value="Diploma">Diploma</SelectItem>
+                              <SelectItem value="Degree">Degree</SelectItem>
+                              <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                              <SelectItem value="Postgraduate">Postgraduate</SelectItem>
+                              <SelectItem value="Masters">Masters</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          {hasFilters && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearFilters}
+                              className="text-muted-foreground"
+                              data-testid="button-clear-filters"
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg px-4 py-2 border border-indigo-200 dark:border-indigo-800">
+                      <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                        Magic Match
+                      </span>
+                      <Switch
+                        checked={magicMatchEnabled}
+                        onCheckedChange={handleMagicMatchToggle}
+                        disabled={!hasProfile}
+                        data-testid="switch-magic-match"
                       />
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Filter className="w-4 h-4 text-muted-foreground" />
-                      <Select 
-                        value={selectedLevel || "all"} 
-                        onValueChange={(val) => setSelectedLevel(val === "all" ? "" : val)}
-                      >
-                        <SelectTrigger className="w-[180px]" data-testid="select-level">
-                          <SelectValue placeholder="Education Level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Levels</SelectItem>
-                          <SelectItem value="SPM">SPM</SelectItem>
-                          <SelectItem value="Diploma">Diploma</SelectItem>
-                          <SelectItem value="Degree">Degree</SelectItem>
-                          <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                          <SelectItem value="Postgraduate">Postgraduate</SelectItem>
-                          <SelectItem value="Masters">Masters</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {hasFilters && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleClearFilters}
-                          className="text-muted-foreground"
-                          data-testid="button-clear-filters"
+
+                    {!hasProfile && (
+                      <Link href="/onboarding">
+                        <Button 
+                          variant="default"
+                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          data-testid="button-create-profile"
                         >
-                          <X className="w-4 h-4 mr-1" />
-                          Clear
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Create AI Profile
                         </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg px-4 py-2 border border-indigo-200 dark:border-indigo-800">
-                  <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
-                    Magic Match
-                  </span>
-                  <Switch
-                    checked={magicMatchEnabled}
-                    onCheckedChange={handleMagicMatchToggle}
-                    disabled={!hasProfile}
-                    data-testid="switch-magic-match"
-                  />
+                      </Link>
+                    )}
+                  </div>
                 </div>
-
-                {!hasProfile && (
-                  <Link href="/onboarding">
-                    <Button 
-                      variant="default"
-                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                      data-testid="button-create-profile"
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Create AI Profile
-                    </Button>
-                  </Link>
-                )}
               </div>
             </div>
+
+            {isLoading ? (
+              <LoadingState />
+            ) : error ? (
+              <ErrorState message={error} onRetry={() => magicMatchEnabled ? loadMatchedScholarships() : loadScholarships(debouncedQuery, selectedLevel)} />
+            ) : displayScholarships.length === 0 ? (
+              <div className="text-center py-20" data-testid="empty-state">
+                <div className="bg-muted rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {hasFilters ? "No matching scholarships" : "Tiada biasiswa dijumpai"}
+                </h3>
+                <p className="text-muted-foreground">
+                  {hasFilters 
+                    ? "Try adjusting your search or filter criteria." 
+                    : "No scholarships available at the moment. Check back later."}
+                </p>
+                {hasFilters && (
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={handleClearFilters}
+                    data-testid="button-clear-empty"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div 
+                className={`grid gap-6 ${selectedScholarship ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}
+                data-testid="scholarship-grid"
+              >
+                {displayScholarships.map((scholarship) => (
+                  <ScholarshipCard 
+                    key={scholarship.id} 
+                    scholarship={scholarship} 
+                    showMatchInfo={magicMatchEnabled}
+                    onViewDetails={handleViewDetails}
+                    isSelected={selectedScholarship?.id === scholarship.id}
+                  />
+                ))}
+              </div>
+            )}
+
+            <footer className="bg-card border-t border-border mt-8 py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+              <div className="text-center text-muted-foreground text-sm">
+                <p data-testid="text-footer">
+                  &copy; {new Date().getFullYear()} Ascendia. All rights reserved.
+                </p>
+                <p className="mt-1">
+                  Helping Malaysian students discover educational opportunities.
+                </p>
+              </div>
+            </footer>
           </div>
         </div>
 
-        {isLoading ? (
-          <LoadingState />
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => magicMatchEnabled ? loadMatchedScholarships() : loadScholarships(debouncedQuery, selectedLevel)} />
-        ) : displayScholarships.length === 0 ? (
-          <div className="text-center py-20" data-testid="empty-state">
-            <div className="bg-muted rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-              <Search className="w-10 h-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {hasFilters ? "No matching scholarships" : "Tiada biasiswa dijumpai"}
-            </h3>
-            <p className="text-muted-foreground">
-              {hasFilters 
-                ? "Try adjusting your search or filter criteria." 
-                : "No scholarships available at the moment. Check back later."}
-            </p>
-            {hasFilters && (
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={handleClearFilters}
-                data-testid="button-clear-empty"
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div 
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            data-testid="scholarship-grid"
-          >
-            {displayScholarships.map((scholarship) => (
-              <ScholarshipCard 
-                key={scholarship.id} 
-                scholarship={scholarship} 
-                showMatchInfo={magicMatchEnabled}
-              />
-            ))}
+        {selectedScholarship && (
+          <div className="w-1/2 h-full border-l border-border">
+            <ScholarshipDetailPanel 
+              scholarship={selectedScholarship}
+              onClose={handleCloseDetail}
+            />
           </div>
         )}
       </div>
-
-      <footer className="bg-card border-t border-border mt-auto py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-muted-foreground text-sm">
-            <p data-testid="text-footer">
-              &copy; {new Date().getFullYear()} Ascendia. All rights reserved.
-            </p>
-            <p className="mt-1">
-              Helping Malaysian students discover educational opportunities.
-            </p>
-          </div>
-        </div>
-      </footer>
 
       <Button
         onClick={() => setChatOpen(!chatOpen)}

@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import MatchInsightsSheet from "./MatchInsightsSheet";
-import ScholarshipDetailDrawer from "./ScholarshipDetailDrawer";
 
 interface ScholarshipCardProps {
   scholarship: Scholarship | ScholarshipMatch;
   showMatchInfo?: boolean;
+  onViewDetails?: (scholarship: Scholarship | ScholarshipMatch) => void;
+  isSelected?: boolean;
 }
 
 function getDeadlineStatus(deadline: string): "urgent" | "normal" | "expired" {
@@ -53,9 +54,8 @@ function getMatchScoreBgColor(score: number): string {
   return "bg-red-100 dark:bg-red-900/30";
 }
 
-export default function ScholarshipCard({ scholarship, showMatchInfo = false }: ScholarshipCardProps) {
+export default function ScholarshipCard({ scholarship, showMatchInfo = false, onViewDetails, isSelected = false }: ScholarshipCardProps) {
   const [insightsOpen, setInsightsOpen] = useState(false);
-  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   
   const deadlineStatus = getDeadlineStatus(scholarship.deadline);
   const isExpired = deadlineStatus === "expired";
@@ -70,7 +70,7 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
     if (target.closest('button')) {
       return;
     }
-    setDetailDrawerOpen(true);
+    onViewDetails?.(scholarship);
   };
 
   return (
@@ -80,7 +80,7 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
           isExpired ? "opacity-60" : ""
         } ${isUrgent && !isExpired ? "border-red-300 dark:border-red-800" : ""} ${
           matchData && !isEligible && !isExpired ? "opacity-70" : ""
-        }`}
+        } ${isSelected ? "ring-2 ring-indigo-500 border-indigo-500" : ""}`}
         data-testid={`card-scholarship-${scholarship.id}`}
         onClick={handleCardClick}
       >
@@ -223,12 +223,6 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false }: 
           onClose={() => setInsightsOpen(false)}
         />
       )}
-      
-      <ScholarshipDetailDrawer
-        scholarship={scholarship}
-        isOpen={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
-      />
     </>
   );
 }
