@@ -51,6 +51,11 @@ export interface Scholarship {
   min_muet?: number | null;
   min_ielts?: number | null;
   min_spm_english?: string | null;
+  // New fields for enhanced UI
+  email?: string | null;
+  scholarship_type?: string | null;  // e.g., "Scholarship", "Grant", "Fellowship"
+  place_of_study?: string[] | null;  // e.g., ["Local", "Overseas"]
+  banner_image_url?: string | null;
 }
 
 // Score breakdown for hybrid matching

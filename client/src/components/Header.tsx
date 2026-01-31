@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Settings, LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   const { user, signOut, isLoading, isAdmin } = useAuth();
@@ -40,6 +41,7 @@ export default function Header() {
             </p>
           </Link>
           <div className="flex-1 flex justify-end items-center gap-2">
+            <ThemeToggle />
             {isAdmin && (
               <Link 
                 href="/admin"

@@ -83,6 +83,10 @@ export interface ScholarshipCreate {
   min_muet?: number | null;
   min_ielts?: number | null;
   min_spm_english?: string | null;
+  email?: string | null;
+  scholarship_type?: string | null;
+  place_of_study?: string[] | null;
+  banner_image_url?: string | null;
 }
 
 export async function createScholarship(data: ScholarshipCreate, accessToken?: string): Promise<Scholarship> {

@@ -39,6 +39,10 @@ interface FormData {
   is_bumiputera_only: boolean;
   ai_matching_context: string;
   detailed_description: string;
+  email: string;
+  scholarship_type: string;
+  place_of_study: string[];
+  banner_image_url: string;
 }
 
 const emptyFormData: FormData = {
@@ -57,6 +61,10 @@ const emptyFormData: FormData = {
   is_bumiputera_only: false,
   ai_matching_context: "",
   detailed_description: "",
+  email: "",
+  scholarship_type: "",
+  place_of_study: [],
+  banner_image_url: "",
 };
 
 export default function Admin() {
@@ -330,6 +338,10 @@ export default function Admin() {
       is_bumiputera_only: scholarship.is_bumiputera_only || false,
       ai_matching_context: scholarship.ai_matching_context || "",
       detailed_description: scholarship.detailed_description || "",
+      email: scholarship.email || "",
+      scholarship_type: scholarship.scholarship_type || "",
+      place_of_study: scholarship.place_of_study || [],
+      banner_image_url: scholarship.banner_image_url || "",
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -371,6 +383,10 @@ export default function Admin() {
         is_bumiputera_only: formData.is_bumiputera_only,
         ai_matching_context: formData.ai_matching_context || null,
         detailed_description: formData.detailed_description || null,
+        email: formData.email || null,
+        scholarship_type: formData.scholarship_type || null,
+        place_of_study: formData.place_of_study.length > 0 ? formData.place_of_study : null,
+        banner_image_url: formData.banner_image_url || null,
       };
 
       if (editingId) {
@@ -1325,6 +1341,93 @@ export default function Admin() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Use markdown for formatting: **bold**, *italic*, # headers, - bullet points
                   </p>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Enhanced Display Fields</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Contact Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="contact@provider.com"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-email"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Scholarship Type
+                    </label>
+                    <select
+                      name="scholarship_type"
+                      value={formData.scholarship_type}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="select-scholarship-type"
+                    >
+                      <option value="">Select type...</option>
+                      <option value="Scholarship">Scholarship</option>
+                      <option value="Grant">Grant</option>
+                      <option value="Fellowship">Fellowship</option>
+                      <option value="Sponsorship">Sponsorship</option>
+                      <option value="Award">Award</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Place of Study
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {["Local", "Overseas"].map((place) => (
+                        <label 
+                          key={place}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                            formData.place_of_study.includes(place)
+                              ? "bg-indigo-100 dark:bg-indigo-900 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300"
+                              : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.place_of_study.includes(place)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({...formData, place_of_study: [...formData.place_of_study, place]});
+                              } else {
+                                setFormData({...formData, place_of_study: formData.place_of_study.filter(p => p !== place)});
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <span className="text-sm">{place}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Banner Image URL
+                    </label>
+                    <input
+                      type="url"
+                      name="banner_image_url"
+                      value={formData.banner_image_url}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/banner.jpg"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      data-testid="input-banner-url"
+                    />
+                  </div>
                 </div>
               </div>
 

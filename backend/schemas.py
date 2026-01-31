@@ -26,6 +26,11 @@ class ScholarshipCreate(BaseModel):
     min_muet: Optional[float] = None  # MUET Band (1-5)
     min_ielts: Optional[float] = None  # IELTS score (0-9)
     min_spm_english: Optional[str] = None  # SPM English grade (A+, A, A-, B+, B, C, etc.)
+    # New fields for enhanced UI
+    email: Optional[str] = None
+    scholarship_type: Optional[str] = None  # e.g., "Scholarship", "Grant", "Fellowship"
+    place_of_study: Optional[List[str]] = None  # e.g., ["Local", "Overseas"]
+    banner_image_url: Optional[str] = None
 
 
 class ScholarshipResponse(BaseModel):
@@ -49,6 +54,11 @@ class ScholarshipResponse(BaseModel):
     min_muet: Optional[float] = None
     min_ielts: Optional[float] = None
     min_spm_english: Optional[str] = None
+    # New fields for enhanced UI
+    email: Optional[str] = None
+    scholarship_type: Optional[str] = None
+    place_of_study: Optional[List[str]] = None
+    banner_image_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -74,6 +84,11 @@ class ScholarshipMatchResponse(BaseModel):
     min_muet: Optional[float] = None
     min_ielts: Optional[float] = None
     min_spm_english: Optional[str] = None
+    # New fields for enhanced UI
+    email: Optional[str] = None
+    scholarship_type: Optional[str] = None
+    place_of_study: Optional[List[str]] = None
+    banner_image_url: Optional[str] = None
     # Match scoring
     similarity_score: float
     match_score: Optional[float] = None  # Hybrid score (0-100%)

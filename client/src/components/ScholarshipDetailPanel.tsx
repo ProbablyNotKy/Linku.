@@ -1,7 +1,7 @@
 import { Scholarship, ScholarshipMatch } from "@shared/schema";
 import { 
   Calendar, Building2, GraduationCap, ExternalLink, 
-  MapPin, DollarSign, BookOpen, Users, Globe, X
+  MapPin, Mail, Link2, FileText, Globe, X, Award
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,26 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+function FieldRow({ 
+  icon: Icon, 
+  label, 
+  children 
+}: { 
+  icon: React.ElementType; 
+  label: string; 
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-4 py-3">
+      <div className="flex items-center gap-2 text-muted-foreground min-w-[140px] shrink-0">
+        <Icon className="w-4 h-4" />
+        <span className="text-sm">{label}</span>
+      </div>
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
 export default function ScholarshipDetailPanel({ 
   scholarship, 
   onClose 
@@ -55,237 +75,232 @@ export default function ScholarshipDetailPanel({
   const isExpired = deadlineStatus === "expired";
   const isUrgent = deadlineStatus === "urgent";
 
+  const providerGradients: Record<string, string> = {
+    "petronas": "from-emerald-800 to-emerald-950",
+    "khazanah": "from-blue-800 to-blue-950",
+    "maybank": "from-amber-700 to-amber-900",
+    "jpa": "from-indigo-800 to-indigo-950",
+    "default": "from-slate-700 to-slate-900"
+  };
+
+  const getProviderGradient = (provider: string) => {
+    const key = Object.keys(providerGradients).find(k => 
+      provider.toLowerCase().includes(k)
+    );
+    return providerGradients[key || "default"];
+  };
+
   return (
     <div 
-      className="h-full flex flex-col bg-background border-l border-border"
+      className="h-full flex flex-col bg-zinc-900 dark:bg-zinc-900 text-white"
       data-testid="panel-scholarship-detail"
     >
-      <div className="p-6 pb-4 border-b flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-start gap-3 flex-wrap mb-2">
-            <Badge 
-              variant="secondary"
-              className="whitespace-nowrap shrink-0"
-              style={{ backgroundColor: "#e0e7ff", color: "#4338ca" }}
-              data-testid="badge-education-panel"
-            >
-              <GraduationCap className="w-3 h-3 mr-1" />
-              {scholarship.education_level && scholarship.education_level.length > 0 
-                ? (scholarship.education_level.length <= 2 
-                    ? scholarship.education_level.join(", ") 
-                    : `${scholarship.education_level.slice(0, 2).join(", ")}...`)
-                : "All Levels"}
-            </Badge>
-            {isUrgent && !isExpired && (
-              <Badge variant="destructive" className="text-xs">
-                Urgent
-              </Badge>
-            )}
-            {isExpired && (
-              <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
-                Expired
-              </Badge>
-            )}
+      <div className="relative">
+        <div 
+          className={`h-40 bg-gradient-to-br ${getProviderGradient(scholarship.provider)} relative overflow-hidden`}
+          style={scholarship.banner_image_url ? {
+            backgroundImage: `url(${scholarship.banner_image_url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          } : undefined}
+        >
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute bottom-4 right-4 text-3xl font-bold text-white/80 uppercase tracking-wider">
+            {scholarship.provider.split(' ').slice(0, 2).join(' ')}
           </div>
-          <h2 
-            className="text-xl font-bold text-foreground"
-            data-testid="text-title-panel"
-          >
-            {scholarship.title}
-          </h2>
-          <p className="text-muted-foreground flex items-center gap-2 mt-1">
-            <Building2 className="w-4 h-4" />
-            {scholarship.provider}
-          </p>
         </div>
+        
         <Button
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="shrink-0"
+          className="absolute top-3 right-3 text-white"
           data-testid="button-close-panel"
         >
           <X className="w-5 h-5" />
         </Button>
+
+        <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-lg bg-zinc-800 border-4 border-zinc-900 flex items-center justify-center shadow-lg">
+          <Building2 className="w-8 h-8 text-white/80" />
+        </div>
       </div>
       
-      <ScrollArea className="flex-1 p-6">
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <DollarSign className="w-4 h-4" />
-                Amount
-              </div>
-              <p 
-                className="text-lg font-semibold text-green-600 dark:text-green-400"
-                data-testid="text-amount-panel"
-              >
-                {scholarship.amount}
-              </p>
+      <div className="pt-12 px-6 pb-4">
+        <h2 
+          className="text-2xl font-bold text-white"
+          data-testid="text-title-panel"
+        >
+          {scholarship.title}
+        </h2>
+      </div>
+
+      <ScrollArea className="flex-1 px-6">
+        <div className="space-y-2">
+          <div className="bg-zinc-800/50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3 text-white/80">
+              <FileText className="w-4 h-4" />
+              <span className="text-sm font-medium">Requirements</span>
             </div>
             
-            <div className={`rounded-lg p-4 ${
-              isExpired ? "bg-gray-50 dark:bg-gray-800" :
-              isUrgent ? "bg-red-50 dark:bg-red-900/20" : "bg-amber-50 dark:bg-amber-900/20"
-            }`}>
-              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-                <Calendar className="w-4 h-4" />
-                Deadline
+            {scholarship.detailed_description ? (
+              <div 
+                className="prose prose-sm prose-invert max-w-none text-zinc-300 text-sm leading-relaxed"
+                data-testid="text-detailed-description"
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {scholarship.detailed_description}
+                </ReactMarkdown>
               </div>
-              <p 
-                className={`text-lg font-semibold ${
-                  isExpired ? "text-gray-500 line-through" :
-                  isUrgent ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
+            ) : (
+              <div className="text-zinc-300 text-sm leading-relaxed space-y-2">
+                {scholarship.min_cgpa && (
+                  <p>Minimum CGPA of {scholarship.min_cgpa.toFixed(2)} required</p>
+                )}
+                {scholarship.min_spm_as && (
+                  <p>{scholarship.min_spm_as} A's required in SPM</p>
+                )}
+                {scholarship.household_income_max && (
+                  <p>Household income must not exceed {formatCurrency(scholarship.household_income_max)}</p>
+                )}
+                {scholarship.is_bumiputera_only && (
+                  <p>Open to Bumiputera students only</p>
+                )}
+                {scholarship.state_restriction && (
+                  <p>Restricted to students from {scholarship.state_restriction}</p>
+                )}
+                {scholarship.min_muet && (
+                  <p>Minimum MUET Band {scholarship.min_muet}</p>
+                )}
+                {scholarship.min_ielts && (
+                  <p>Minimum IELTS score of {scholarship.min_ielts}</p>
+                )}
+                {!scholarship.min_cgpa && !scholarship.min_spm_as && !scholarship.household_income_max && 
+                 !scholarship.is_bumiputera_only && !scholarship.state_restriction && (
+                  <p className="text-zinc-400 italic">No specific requirements listed. Please check the official website for details.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Separator className="bg-zinc-700" />
+
+          <div className="space-y-1 py-2">
+            <FieldRow icon={Award} label="Status">
+              <Badge 
+                variant={isExpired ? "secondary" : "default"}
+                className={`${
+                  isExpired 
+                    ? "bg-red-600 text-white" 
+                    : isUrgent 
+                      ? "bg-amber-500 text-black" 
+                      : "bg-emerald-600 text-white"
                 }`}
-                data-testid="text-deadline-panel"
               >
-                {formatDate(scholarship.deadline)}
-              </p>
-            </div>
-          </div>
+                {isExpired ? "Closed" : isUrgent ? "Closing Soon" : "Open"}
+              </Badge>
+            </FieldRow>
 
-          {(scholarship.study_areas && scholarship.study_areas.length > 0) && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                Study Areas
-              </h4>
-              <div className="flex flex-wrap gap-1.5" data-testid="study-areas-panel">
-                {scholarship.study_areas.map((area, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {area}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {scholarship.tags && scholarship.tags.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-2">Tags</h4>
-              <div className="flex flex-wrap gap-1.5" data-testid="tags-panel">
-                {scholarship.tags.map((tag, index) => (
-                  <span 
-                    key={index}
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Separator />
-
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Eligibility Requirements</h4>
-            
-            <div className="grid gap-2 text-sm">
-              {scholarship.min_cgpa && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">Minimum CGPA</span>
-                  <span className="font-medium">{scholarship.min_cgpa.toFixed(2)}</span>
-                </div>
-              )}
-              
-              {scholarship.min_spm_as && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">SPM A's Required</span>
-                  <span className="font-medium">{scholarship.min_spm_as}</span>
-                </div>
-              )}
-              
-              {scholarship.household_income_max && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">Max Household Income</span>
-                  <span className="font-medium">{formatCurrency(scholarship.household_income_max)}</span>
-                </div>
-              )}
-              
-              {scholarship.state_restriction && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> State Restriction
-                  </span>
-                  <span className="font-medium">{scholarship.state_restriction}</span>
-                </div>
-              )}
-              
-              {scholarship.is_bumiputera_only && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Users className="w-3 h-3" /> Bumiputera Only
-                  </span>
-                  <Badge variant="secondary" className="text-xs">Yes</Badge>
-                </div>
-              )}
-
-              {scholarship.min_muet && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">Minimum MUET Band</span>
-                  <span className="font-medium">{scholarship.min_muet}</span>
-                </div>
-              )}
-
-              {scholarship.min_ielts && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">Minimum IELTS</span>
-                  <span className="font-medium">{scholarship.min_ielts}</span>
-                </div>
-              )}
-
-              {scholarship.min_spm_english && (
-                <div className="flex items-center justify-between py-1.5 px-3 rounded bg-muted/50">
-                  <span className="text-muted-foreground">Minimum SPM English</span>
-                  <span className="font-medium">{scholarship.min_spm_english}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {scholarship.detailed_description && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="text-sm font-medium text-foreground mb-3">Full Description</h4>
-                <div 
-                  className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground"
-                  data-testid="text-detailed-description"
-                >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {scholarship.detailed_description}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </>
-          )}
-
-          {scholarship.url && (
-            <>
-              <Separator />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Globe className="w-4 h-4" />
+            {scholarship.url && (
+              <FieldRow icon={Link2} label="Application Link">
                 <a 
-                  href={scholarship.url} 
-                  target="_blank" 
+                  href={scholarship.url}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline truncate"
+                  className="text-blue-400 hover:underline text-sm truncate block"
                   data-testid="link-scholarship-url"
                 >
-                  {scholarship.url}
+                  {new URL(scholarship.url).hostname}
                 </a>
+              </FieldRow>
+            )}
+
+            {scholarship.email && (
+              <FieldRow icon={Mail} label="Email">
+                <a 
+                  href={`mailto:${scholarship.email}`}
+                  className="text-blue-400 hover:underline text-sm"
+                  data-testid="text-email-panel"
+                >
+                  {scholarship.email}
+                </a>
+              </FieldRow>
+            )}
+
+            <FieldRow icon={Calendar} label="Deadline">
+              <span className={`text-sm ${isExpired ? "text-red-400 line-through" : isUrgent ? "text-amber-400" : "text-white"}`}>
+                {formatDate(scholarship.deadline)}
+              </span>
+            </FieldRow>
+
+            <FieldRow icon={Award} label="Scholarship Type">
+              <Badge variant="secondary" className="bg-indigo-600 text-white">
+                {scholarship.scholarship_type || "Scholarship"}
+              </Badge>
+            </FieldRow>
+
+            <FieldRow icon={GraduationCap} label="Open for">
+              <div className="flex flex-wrap gap-1">
+                {scholarship.education_level && scholarship.education_level.length > 0 ? (
+                  scholarship.education_level.map((level, idx) => (
+                    <Badge key={idx} variant="secondary" className="bg-purple-600 text-white text-xs">
+                      {level}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="secondary" className="bg-purple-600 text-white text-xs">
+                    All Levels
+                  </Badge>
+                )}
               </div>
-            </>
-          )}
+            </FieldRow>
+
+            {scholarship.study_areas && scholarship.study_areas.length > 0 && (
+              <FieldRow icon={FileText} label="Study Areas">
+                <div className="flex flex-wrap gap-1">
+                  {scholarship.study_areas.map((area, idx) => (
+                    <Badge key={idx} variant="outline" className="border-zinc-600 text-zinc-300 text-xs">
+                      {area}
+                    </Badge>
+                  ))}
+                </div>
+              </FieldRow>
+            )}
+
+            <FieldRow icon={Globe} label="Place of Study">
+              <div className="flex flex-wrap gap-1">
+                {scholarship.place_of_study && scholarship.place_of_study.length > 0 ? (
+                  scholarship.place_of_study.map((place, idx) => (
+                    <Badge key={idx} variant="secondary" className="bg-teal-600 text-white text-xs">
+                      {place}
+                    </Badge>
+                  ))
+                ) : (
+                  <>
+                    <Badge variant="secondary" className="bg-teal-600 text-white text-xs">Local</Badge>
+                    <Badge variant="secondary" className="bg-cyan-600 text-white text-xs">Overseas</Badge>
+                  </>
+                )}
+              </div>
+            </FieldRow>
+
+            {scholarship.tags && scholarship.tags.length > 0 && (
+              <FieldRow icon={Award} label="Tags">
+                <div className="flex flex-wrap gap-1">
+                  {scholarship.tags.map((tag, idx) => (
+                    <Badge key={idx} variant="outline" className="border-zinc-600 text-zinc-400 text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </FieldRow>
+            )}
+          </div>
         </div>
       </ScrollArea>
       
-      <div className="p-6 pt-4 border-t mt-auto">
+      <div className="p-6 pt-4 border-t border-zinc-700 mt-auto">
         <Button
-          className="w-full"
-          style={{ backgroundColor: "#4f46e5" }}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
           disabled={isExpired}
           data-testid="button-apply-panel"
           onClick={() => {
