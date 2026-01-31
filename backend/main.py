@@ -286,9 +286,12 @@ def create_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null English proficiency fields (columns may not exist in database yet)
-    english_fields = ["min_muet", "min_ielts", "min_spm_english"]
-    for field in english_fields:
+    # Remove null fields for columns that may not exist in database yet
+    optional_fields = [
+        "min_muet", "min_ielts", "min_spm_english",
+        "email", "scholarship_type", "place_of_study", "banner_image_url"
+    ]
+    for field in optional_fields:
         if field in data and data[field] is None:
             del data[field]
     
@@ -365,9 +368,12 @@ def update_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null English proficiency fields (columns may not exist in database yet)
-    english_fields = ["min_muet", "min_ielts", "min_spm_english"]
-    for field in english_fields:
+    # Remove null fields for columns that may not exist in database yet
+    optional_fields = [
+        "min_muet", "min_ielts", "min_spm_english",
+        "email", "scholarship_type", "place_of_study", "banner_image_url"
+    ]
+    for field in optional_fields:
         if field in data and data[field] is None:
             del data[field]
     
