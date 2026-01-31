@@ -286,13 +286,15 @@ def create_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null fields for columns that may not exist in database yet
+    # Remove null/empty fields for columns that may cause schema cache issues
+    # These fields are new and may not be in PostgREST's schema cache yet
     optional_fields = [
         "min_muet", "min_ielts", "min_spm_english",
-        "email", "scholarship_type", "place_of_study", "banner_image_url"
+        "email", "scholarship_type", "place_of_study", "banner_image_url",
+        "deadline_type", "opens_at"
     ]
     for field in optional_fields:
-        if field in data and data[field] is None:
+        if field in data and (data[field] is None or data[field] == "" or data[field] == "Fixed"):
             del data[field]
     
     result = supabase.table("scholarships").insert(data).execute()
@@ -368,13 +370,15 @@ def update_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null fields for columns that may not exist in database yet
+    # Remove null/empty fields for columns that may cause schema cache issues
+    # These fields are new and may not be in PostgREST's schema cache yet
     optional_fields = [
         "min_muet", "min_ielts", "min_spm_english",
-        "email", "scholarship_type", "place_of_study", "banner_image_url"
+        "email", "scholarship_type", "place_of_study", "banner_image_url",
+        "deadline_type", "opens_at"
     ]
     for field in optional_fields:
-        if field in data and data[field] is None:
+        if field in data and (data[field] is None or data[field] == ""):
             del data[field]
     
     result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
