@@ -275,8 +275,12 @@ def create_scholarship(
 ):
     """Create a new scholarship. Requires admin authentication."""
     data = scholarship.model_dump()
+    
+    # Convert date objects to ISO strings for Supabase
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
+    if data.get("opens_at"):
+        data["opens_at"] = str(data["opens_at"])
     
     # Handle education_level: null means "open to all", convert to empty array for Supabase
     if data.get("education_level") is None:
@@ -350,8 +354,12 @@ def update_scholarship(
         raise HTTPException(status_code=404, detail="Scholarship not found")
     
     data = scholarship_data.model_dump()
+    
+    # Convert date objects to ISO strings for Supabase
     if data.get("deadline"):
         data["deadline"] = str(data["deadline"])
+    if data.get("opens_at"):
+        data["opens_at"] = str(data["opens_at"])
     
     # Handle education_level: null means "open to all", convert to empty array for Supabase
     if data.get("education_level") is None:

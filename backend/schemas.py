@@ -10,7 +10,7 @@ class ScholarshipCreate(BaseModel):
     title: str
     provider: str
     amount: str
-    deadline: date
+    deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -31,6 +31,9 @@ class ScholarshipCreate(BaseModel):
     scholarship_type: Optional[str] = None  # e.g., "Scholarship", "Grant", "Fellowship"
     place_of_study: Optional[List[str]] = None  # e.g., ["Local", "Overseas"]
     banner_image_url: Optional[str] = None
+    # Deadline flexibility fields
+    deadline_type: Optional[str] = "Fixed"  # Fixed, Estimated, Rolling, TBA
+    opens_at: Optional[date] = None  # When applications typically open
 
 
 class ScholarshipResponse(BaseModel):
@@ -38,7 +41,7 @@ class ScholarshipResponse(BaseModel):
     title: str
     provider: str
     amount: str
-    deadline: date
+    deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -59,6 +62,9 @@ class ScholarshipResponse(BaseModel):
     scholarship_type: Optional[str] = None
     place_of_study: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
+    # Deadline flexibility fields
+    deadline_type: Optional[str] = "Fixed"  # Fixed, Estimated, Rolling, TBA
+    opens_at: Optional[date] = None  # When applications typically open
 
     class Config:
         from_attributes = True
@@ -69,7 +75,7 @@ class ScholarshipMatchResponse(BaseModel):
     title: str
     provider: str
     amount: str
-    deadline: date
+    deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
     url: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -89,6 +95,9 @@ class ScholarshipMatchResponse(BaseModel):
     scholarship_type: Optional[str] = None
     place_of_study: Optional[List[str]] = None
     banner_image_url: Optional[str] = None
+    # Deadline flexibility fields
+    deadline_type: Optional[str] = "Fixed"  # Fixed, Estimated, Rolling, TBA
+    opens_at: Optional[date] = None  # When applications typically open
     # Match scoring
     similarity_score: float
     match_score: Optional[float] = None  # Hybrid score (0-100%)

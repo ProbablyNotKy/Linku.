@@ -43,6 +43,8 @@ interface FormData {
   scholarship_type: string;
   place_of_study: string[];
   banner_image_url: string;
+  deadline_type: string;  // Fixed, Estimated, Rolling, TBA
+  opens_at: string;  // When applications typically open
 }
 
 const emptyFormData: FormData = {
@@ -65,6 +67,8 @@ const emptyFormData: FormData = {
   scholarship_type: "",
   place_of_study: [],
   banner_image_url: "",
+  deadline_type: "Fixed",
+  opens_at: "",
 };
 
 export default function Admin() {
@@ -293,11 +297,15 @@ export default function Admin() {
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     
     const expiringSoon = scholarships.filter(s => {
+      if (!s.deadline) return false;
       const deadline = new Date(s.deadline);
       return deadline > now && deadline <= thirtyDaysFromNow;
     }).length;
     
-    const expired = scholarships.filter(s => new Date(s.deadline) < now).length;
+    const expired = scholarships.filter(s => {
+      if (!s.deadline) return false;
+      return new Date(s.deadline) < now;
+    }).length;
     
     return {
       total: scholarships.length,
@@ -326,7 +334,7 @@ export default function Admin() {
       title: scholarship.title,
       provider: scholarship.provider,
       amount: scholarship.amount,
-      deadline: scholarship.deadline,
+      deadline: scholarship.deadline || "",
       education_levels: scholarship.education_level || [],  // Array or empty for "open to all"
       url: scholarship.url || "",
       tags: scholarship.tags?.join(", ") || "",
@@ -342,6 +350,8 @@ export default function Admin() {
       scholarship_type: scholarship.scholarship_type || "",
       place_of_study: scholarship.place_of_study || [],
       banner_image_url: scholarship.banner_image_url || "",
+      deadline_type: scholarship.deadline_type || "Fixed",
+      opens_at: scholarship.opens_at || "",
     });
     setShowForm(true);
     setSuccessMessage("");
@@ -371,7 +381,7 @@ export default function Admin() {
         title: formData.title,
         provider: formData.provider,
         amount: formData.amount,
-        deadline: formData.deadline,
+        deadline: formData.deadline || null,  // Optional for Rolling/TBA
         education_level: formData.education_levels.length > 0 ? formData.education_levels : null,  // null = open to all
         url: formData.url || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
@@ -387,6 +397,8 @@ export default function Admin() {
         scholarship_type: formData.scholarship_type || null,
         place_of_study: formData.place_of_study.length > 0 ? formData.place_of_study : null,
         banner_image_url: formData.banner_image_url || null,
+        deadline_type: formData.deadline_type || "Fixed",
+        opens_at: formData.opens_at || null,
       };
 
       if (editingId) {
@@ -427,14 +439,16 @@ export default function Admin() {
     }
   };
 
-  const isDeadlineSoon = (deadline: string) => {
+  const isDeadlineSoon = (deadline: string | null | undefined) => {
+    if (!deadline) return false;
     const now = new Date();
     const deadlineDate = new Date(deadline);
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
     return deadlineDate > now && deadlineDate.getTime() - now.getTime() <= thirtyDays;
   };
 
-  const isExpired = (deadline: string) => {
+  const isExpired = (deadline: string | null | undefined) => {
+    if (!deadline) return false;
     return new Date(deadline) < new Date();
   };
 
@@ -714,7 +728,7 @@ export default function Admin() {
                   {filteredScholarships.map((scholarship) => (
                     <tr 
                       key={scholarship.id} 
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${isExpired(scholarship.deadline) ? 'opacity-50' : ''}`}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${scholarship.deadline && isExpired(scholarship.deadline) ? 'opacity-50' : ''}`}
                       data-testid={`row-scholarship-${scholarship.id}`}
                     >
                       <td className="px-4 py-4">
@@ -732,17 +746,28 @@ export default function Admin() {
                       <td className="px-4 py-4 text-gray-600 dark:text-gray-300">{scholarship.provider}</td>
                       <td className="px-4 py-4 text-green-600 dark:text-green-400 font-medium">{scholarship.amount}</td>
                       <td className="px-4 py-4">
-                        <span className={`inline-flex items-center gap-1 ${
-                          isExpired(scholarship.deadline) 
-                            ? 'text-red-600 dark:text-red-400' 
-                            : isDeadlineSoon(scholarship.deadline) 
-                              ? 'text-amber-600 dark:text-amber-400' 
-                              : 'text-gray-600 dark:text-gray-300'
-                        }`}>
-                          {isExpired(scholarship.deadline) && <AlertTriangle className="w-3 h-3" />}
-                          {isDeadlineSoon(scholarship.deadline) && !isExpired(scholarship.deadline) && <Clock className="w-3 h-3" />}
-                          {scholarship.deadline}
-                        </span>
+                        {scholarship.deadline_type === "Rolling" ? (
+                          <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
+                            Rolling
+                          </span>
+                        ) : scholarship.deadline_type === "TBA" || !scholarship.deadline ? (
+                          <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                            TBA
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 ${
+                            isExpired(scholarship.deadline) 
+                              ? 'text-red-600 dark:text-red-400' 
+                              : isDeadlineSoon(scholarship.deadline) 
+                                ? 'text-amber-600 dark:text-amber-400' 
+                                : 'text-gray-600 dark:text-gray-300'
+                          }`}>
+                            {isExpired(scholarship.deadline) && <AlertTriangle className="w-3 h-3" />}
+                            {isDeadlineSoon(scholarship.deadline) && !isExpired(scholarship.deadline) && <Clock className="w-3 h-3" />}
+                            {scholarship.deadline}
+                            {scholarship.deadline_type === "Estimated" && <span className="text-xs ml-1">(Est.)</span>}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-gray-600 dark:text-gray-300">
                         {scholarship.education_level && scholarship.education_level.length > 0 
@@ -1075,17 +1100,59 @@ export default function Admin() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Deadline <span className="text-red-500">*</span>
+                    Deadline Type
+                  </label>
+                  <select
+                    name="deadline_type"
+                    value={formData.deadline_type}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="select-deadline-type"
+                  >
+                    <option value="Fixed">Fixed Deadline</option>
+                    <option value="Estimated">Estimated (Usually around...)</option>
+                    <option value="Rolling">Rolling Admission</option>
+                    <option value="TBA">To Be Announced</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formData.deadline_type === "Fixed" && "Scholarship has a specific deadline date"}
+                    {formData.deadline_type === "Estimated" && "Deadline varies yearly, provide an estimate"}
+                    {formData.deadline_type === "Rolling" && "Applications accepted on ongoing basis"}
+                    {formData.deadline_type === "TBA" && "Deadline will be announced later"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Deadline Date {formData.deadline_type === "Fixed" && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="date"
                     name="deadline"
                     value={formData.deadline}
                     onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required={formData.deadline_type === "Fixed"}
+                    disabled={formData.deadline_type === "Rolling" || formData.deadline_type === "TBA"}
+                    className={`w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${(formData.deadline_type === "Rolling" || formData.deadline_type === "TBA") ? "opacity-50 cursor-not-allowed" : ""}`}
                     data-testid="input-deadline"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Opens At (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    name="opens_at"
+                    value={formData.opens_at}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    data-testid="input-opens-at"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    When applications typically open (for planning)
+                  </p>
                 </div>
 
                 <div>

@@ -35,7 +35,7 @@ export interface Scholarship {
   title: string;
   provider: string;
   amount: string;
-  deadline: string;
+  deadline?: string | null;  // Made optional for Rolling/TBA scholarships
   education_level: string[] | null;  // Array of levels, null = open to all
   url?: string;
   tags?: string[];
@@ -56,6 +56,9 @@ export interface Scholarship {
   scholarship_type?: string | null;  // e.g., "Scholarship", "Grant", "Fellowship"
   place_of_study?: string[] | null;  // e.g., ["Local", "Overseas"]
   banner_image_url?: string | null;
+  // Deadline flexibility fields
+  deadline_type?: string | null;  // Fixed, Estimated, Rolling, TBA
+  opens_at?: string | null;  // When applications typically open
 }
 
 // Score breakdown for hybrid matching

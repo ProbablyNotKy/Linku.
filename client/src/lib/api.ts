@@ -68,7 +68,7 @@ export interface ScholarshipCreate {
   title: string;
   provider: string;
   amount: string;
-  deadline: string;
+  deadline?: string | null;  // Made optional for Rolling/TBA scholarships
   education_level: string[] | null;  // Array of levels, null = open to all
   url?: string;
   tags?: string[];
@@ -87,6 +87,8 @@ export interface ScholarshipCreate {
   scholarship_type?: string | null;
   place_of_study?: string[] | null;
   banner_image_url?: string | null;
+  deadline_type?: string | null;  // Fixed, Estimated, Rolling, TBA
+  opens_at?: string | null;  // When applications typically open
 }
 
 export async function createScholarship(data: ScholarshipCreate, accessToken?: string): Promise<Scholarship> {

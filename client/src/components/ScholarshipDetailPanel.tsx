@@ -15,7 +15,11 @@ interface ScholarshipDetailPanelProps {
   onClose: () => void;
 }
 
-function getDeadlineStatus(deadline: string): "urgent" | "normal" | "expired" {
+function getDeadlineStatus(deadline: string | null | undefined, deadlineType?: string | null): "urgent" | "normal" | "expired" | "rolling" | "tba" {
+  if (deadlineType === "Rolling") return "rolling";
+  if (deadlineType === "TBA") return "tba";
+  if (!deadline) return "tba";
+  
   const deadlineDate = new Date(deadline);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -71,9 +75,11 @@ export default function ScholarshipDetailPanel({
 }: ScholarshipDetailPanelProps) {
   if (!scholarship) return null;
   
-  const deadlineStatus = getDeadlineStatus(scholarship.deadline);
+  const deadlineStatus = getDeadlineStatus(scholarship.deadline, scholarship.deadline_type);
   const isExpired = deadlineStatus === "expired";
   const isUrgent = deadlineStatus === "urgent";
+  const isRolling = deadlineStatus === "rolling";
+  const isTBA = deadlineStatus === "tba";
 
   const providerGradients: Record<string, string> = {
     "petronas": "from-emerald-800 to-emerald-950",
@@ -227,10 +233,37 @@ export default function ScholarshipDetailPanel({
             )}
 
             <FieldRow icon={Calendar} label="Deadline">
-              <span className={`text-sm ${isExpired ? "text-red-400 line-through" : isUrgent ? "text-amber-400" : "text-white"}`}>
-                {formatDate(scholarship.deadline)}
-              </span>
+              {isRolling ? (
+                <Badge variant="secondary" className="bg-green-600 text-white">
+                  Rolling Admission
+                </Badge>
+              ) : isTBA ? (
+                <Badge variant="secondary" className="bg-gray-600 text-white">
+                  To Be Announced
+                </Badge>
+              ) : scholarship.deadline ? (
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isExpired ? "text-red-400 line-through" : isUrgent ? "text-amber-400" : "text-white"}`}>
+                    {formatDate(scholarship.deadline)}
+                  </span>
+                  {scholarship.deadline_type === "Estimated" && (
+                    <Badge variant="outline" className="border-amber-500 text-amber-400 text-xs">
+                      Estimated
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm text-zinc-400">Not specified</span>
+              )}
             </FieldRow>
+            
+            {scholarship.opens_at && (
+              <FieldRow icon={Calendar} label="Opens">
+                <span className="text-sm text-emerald-400">
+                  {formatDate(scholarship.opens_at)}
+                </span>
+              </FieldRow>
+            )}
 
             <FieldRow icon={Award} label="Scholarship Type">
               <Badge variant="secondary" className="bg-indigo-600 text-white">
