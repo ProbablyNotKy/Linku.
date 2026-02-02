@@ -286,18 +286,22 @@ def create_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null/empty fields for columns that may cause schema cache issues
-    # These fields are new and may not be in PostgREST's schema cache yet
-    optional_fields = [
-        "min_muet", "min_ielts", "min_spm_english",
-        "email", "scholarship_type", "place_of_study", "banner_image_url",
-        "deadline_type", "opens_at"
+    # Only use core columns that are guaranteed to be in PostgREST schema cache
+    # This avoids PGRST204 errors from schema cache not being in sync
+    core_columns = [
+        "title", "provider", "amount", "deadline", "education_level",
+        "url", "tags", "study_areas", "min_cgpa", "min_spm_as",
+        "household_income_max", "state_restriction", "is_bumiputera_only",
+        "ai_matching_context"
     ]
-    for field in optional_fields:
-        if field in data and (data[field] is None or data[field] == "" or data[field] == "Fixed"):
-            del data[field]
     
-    result = supabase.table("scholarships").insert(data).execute()
+    # Build insert payload with only core columns
+    insert_data = {}
+    for col in core_columns:
+        if col in data:
+            insert_data[col] = data[col]
+    
+    result = supabase.table("scholarships").insert(insert_data).execute()
     
     if result.data:
         scholarship_data = result.data[0]
@@ -370,18 +374,22 @@ def update_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Remove null/empty fields for columns that may cause schema cache issues
-    # These fields are new and may not be in PostgREST's schema cache yet
-    optional_fields = [
-        "min_muet", "min_ielts", "min_spm_english",
-        "email", "scholarship_type", "place_of_study", "banner_image_url",
-        "deadline_type", "opens_at"
+    # Only use core columns that are guaranteed to be in PostgREST schema cache
+    # This avoids PGRST204 errors from schema cache not being in sync
+    core_columns = [
+        "title", "provider", "amount", "deadline", "education_level",
+        "url", "tags", "study_areas", "min_cgpa", "min_spm_as",
+        "household_income_max", "state_restriction", "is_bumiputera_only",
+        "ai_matching_context"
     ]
-    for field in optional_fields:
-        if field in data and (data[field] is None or data[field] == ""):
-            del data[field]
     
-    result = supabase.table("scholarships").update(data).eq("id", scholarship_id).execute()
+    # Build update payload with only core columns
+    update_data = {}
+    for col in core_columns:
+        if col in data:
+            update_data[col] = data[col]
+    
+    result = supabase.table("scholarships").update(update_data).eq("id", scholarship_id).execute()
     
     if result.data:
         updated_data = result.data[0]
