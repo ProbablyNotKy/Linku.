@@ -6,7 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import NotFound from "@/pages/not-found";
-import Home from "@/pages/Home";
+import Landing from "@/pages/Landing";
+import Scholarships from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Onboarding from "@/pages/Onboarding";
 import Login from "@/pages/Login";
@@ -15,7 +16,8 @@ import Signup from "@/pages/Signup";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={Landing} />
+      <Route path="/scholarships" component={Scholarships} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/admin" component={Admin} />
