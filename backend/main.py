@@ -286,16 +286,19 @@ def create_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Only use core columns that are guaranteed to be in PostgREST schema cache
-    # This avoids PGRST204 errors from schema cache not being in sync
-    core_columns = [
-        "title", "provider", "amount", "deadline", "education_level",
-        "url", "tags", "study_areas", "min_cgpa", "min_spm_as",
-        "household_income_max", "state_restriction", "is_bumiputera_only",
-        "ai_matching_context"
+    # Core columns - these are the oldest and definitely in schema cache
+    core_columns = ["title", "provider", "amount", "deadline", "education_level", "url", "tags"]
+    
+    # All other columns may or may not be in cache - update one at a time after insert
+    extra_columns = [
+        "detailed_description", "email", "scholarship_type", "place_of_study",
+        "banner_image_url", "deadline_type", "opens_at",
+        "study_areas", "min_cgpa", "min_spm_as", "household_income_max",
+        "state_restriction", "is_bumiputera_only", "ai_matching_context",
+        "min_muet", "min_ielts"
     ]
     
-    # Build insert payload with only core columns
+    # Build insert payload with core columns only
     insert_data = {}
     for col in core_columns:
         if col in data:
@@ -307,6 +310,15 @@ def create_scholarship(
         scholarship_data = result.data[0]
         scholarship_id = scholarship_data.get("id")
         
+        # Update extra columns one at a time (may fail due to schema cache)
+        for col in extra_columns:
+            if col in data and data[col] is not None:
+                try:
+                    supabase.table("scholarships").update({col: data[col]}).eq("id", scholarship_id).execute()
+                except Exception as col_error:
+                    print(f"Column '{col}' insert skipped (schema cache issue): {col_error}")
+                    continue
+        
         # Generate embedding for the new scholarship
         try:
             text = create_scholarship_text(scholarship_data)
@@ -316,6 +328,10 @@ def create_scholarship(
         except Exception as embed_error:
             print(f"Warning: Failed to generate embedding for scholarship {scholarship_id}: {embed_error}")
         
+        # Re-fetch to get all updated data
+        final_result = supabase.table("scholarships").select("*").eq("id", scholarship_id).execute()
+        if final_result.data:
+            return normalize_scholarship_data(final_result.data[0])
         return normalize_scholarship_data(scholarship_data)
     raise HTTPException(status_code=500, detail="Failed to create scholarship")
 
@@ -374,22 +390,43 @@ def update_scholarship(
     if data.get("education_level") is None:
         data["education_level"] = []
     
-    # Only use core columns that are guaranteed to be in PostgREST schema cache
-    # This avoids PGRST204 errors from schema cache not being in sync
-    core_columns = [
-        "title", "provider", "amount", "deadline", "education_level",
-        "url", "tags", "study_areas", "min_cgpa", "min_spm_as",
-        "household_income_max", "state_restriction", "is_bumiputera_only",
-        "ai_matching_context"
+    # Core columns - these are the oldest and definitely in schema cache
+    core_columns = ["title", "provider", "amount", "deadline", "education_level", "url", "tags"]
+    
+    # All other columns may or may not be in cache - update one at a time
+    extra_columns = [
+        "detailed_description", "email", "scholarship_type", "place_of_study",
+        "banner_image_url", "deadline_type", "opens_at",
+        "study_areas", "min_cgpa", "min_spm_as", "household_income_max",
+        "state_restriction", "is_bumiputera_only", "ai_matching_context",
+        "min_muet", "min_ielts"
     ]
     
-    # Build update payload with only core columns
-    update_data = {}
+    # Build core update payload
+    core_update = {}
     for col in core_columns:
         if col in data:
-            update_data[col] = data[col]
+            core_update[col] = data[col]
     
-    result = supabase.table("scholarships").update(update_data).eq("id", scholarship_id).execute()
+    # Update core columns first - this should definitely work
+    if core_update:
+        try:
+            supabase.table("scholarships").update(core_update).eq("id", scholarship_id).execute()
+        except Exception as e:
+            print(f"Core update failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to update scholarship: {str(e)}")
+    
+    # Update extra columns one at a time - failures are logged but don't block
+    for col in extra_columns:
+        if col in data:
+            try:
+                supabase.table("scholarships").update({col: data[col]}).eq("id", scholarship_id).execute()
+            except Exception as col_error:
+                print(f"Column '{col}' update skipped (schema cache issue): {col_error}")
+                continue
+    
+    # Fetch final result
+    result = supabase.table("scholarships").select("*").eq("id", scholarship_id).execute()
     
     if result.data:
         updated_data = result.data[0]
