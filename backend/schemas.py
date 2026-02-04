@@ -276,3 +276,42 @@ class UserProfileResponse(BaseModel):
 class UserProfileMatchRequest(BaseModel):
     profile_id: str
     limit: int = 10
+
+
+# Subscription schemas for premium tier management
+class SubscriptionResponse(BaseModel):
+    id: int
+    auth_user_id: str
+    tier: str  # 'free' or 'premium'
+    status: str  # 'active', 'expired', 'cancelled'
+    expires_at: Optional[str] = None
+    payment_reference: Optional[str] = None
+    is_premium: bool = False  # Computed field for easy checks
+    
+    class Config:
+        from_attributes = True
+
+
+class SubscriptionCreateRequest(BaseModel):
+    """Request from ToyyibPay webhook to activate subscription"""
+    payment_reference: str
+    amount_paid: float
+    duration_months: int = 1  # How many months to activate
+
+
+class SubscriptionWebhookRequest(BaseModel):
+    """ToyyibPay webhook callback structure - adjust based on actual ToyyibPay API"""
+    billcode: str
+    order_id: str
+    status: str  # '1' for success, '2' for pending, '3' for failed
+    transaction_id: Optional[str] = None
+    amount: Optional[str] = None
+    msg: Optional[str] = None
+
+
+class FeatureAccessResponse(BaseModel):
+    """Response for feature access checks"""
+    has_access: bool
+    tier: str
+    message: Optional[str] = None
+    upgrade_required: bool = False

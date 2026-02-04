@@ -34,8 +34,13 @@ from schemas import (
     UserProfileResponse,
     UserProfileMatchRequest,
     MALAYSIAN_STATES,
-    STUDY_AREAS
+    STUDY_AREAS,
+    SubscriptionResponse,
+    SubscriptionCreateRequest,
+    SubscriptionWebhookRequest,
+    FeatureAccessResponse
 )
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Ascendia API", description="Malaysian Scholarship Discovery Platform")
 
@@ -1293,9 +1298,14 @@ def get_my_profile(user: AuthUser = Depends(get_current_user)):
 
 
 @app.post("/profiles/match", response_model=List[ScholarshipMatchResponse])
-def match_with_profile(request: UserProfileMatchRequest):
+def match_with_profile(
+    request: UserProfileMatchRequest,
+    user: AuthUser = Depends(get_current_user)
+):
     """
     STRICT MODE Magic Match - Match scholarships using stored profile.
+    
+    **PREMIUM FEATURE** - Requires active premium subscription.
     
     Applies strict eligibility filters in this order:
     1. Expired scholarship exclusion
@@ -1306,6 +1316,13 @@ def match_with_profile(request: UserProfileMatchRequest):
     Then calculates hybrid score:
     Score = (0.5 x Similarity) + (0.3 x Academic) + (0.2 x SocioEconomic)
     """
+    # Check premium subscription
+    if not is_premium_user(user.user_id):
+        raise HTTPException(
+            status_code=403, 
+            detail="AI Matching is a premium feature. Please upgrade to access personalized scholarship matching."
+        )
+    
     # Get profile from database
     profile_result = supabase.table("user_profiles").select("*").eq("id", request.profile_id).execute()
     
@@ -1594,7 +1611,22 @@ def vectorize_scholarships():
 
 
 @app.post("/chat/coach", response_model=ChatResponse)
-def chat_with_coach(request: ChatRequest):
+def chat_with_coach(
+    request: ChatRequest,
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    Socratic Mentor chat for essay guidance.
+    
+    **PREMIUM FEATURE** - Requires active premium subscription.
+    """
+    # Check premium subscription
+    if not is_premium_user(user.user_id):
+        raise HTTPException(
+            status_code=403, 
+            detail="Socratic Mentor is a premium feature. Please upgrade to access AI-powered essay guidance."
+        )
+    
     try:
         messages = [{"role": "system", "content": SOCRATIC_SYSTEM_PROMPT}]
         
@@ -2020,3 +2052,223 @@ def reject_draft(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reject draft: {str(e)}")
+
+
+# ============================================================================
+# SUBSCRIPTION / PREMIUM TIER ENDPOINTS
+# ============================================================================
+
+def get_user_subscription(auth_user_id: str) -> dict:
+    """Helper function to get or create a user's subscription record."""
+    result = supabase.table("subscriptions").select("*").eq("auth_user_id", auth_user_id).execute()
+    
+    if result.data:
+        sub = result.data[0]
+        # Check if subscription is expired
+        if sub.get("expires_at"):
+            expires_at = datetime.fromisoformat(sub["expires_at"].replace("Z", "+00:00"))
+            if expires_at < datetime.now(expires_at.tzinfo):
+                # Subscription expired - update status
+                supabase.table("subscriptions").update({
+                    "status": "expired",
+                    "tier": "free"
+                }).eq("id", sub["id"]).execute()
+                sub["status"] = "expired"
+                sub["tier"] = "free"
+        return sub
+    
+    # Create a new free subscription for this user
+    new_sub = {
+        "auth_user_id": auth_user_id,
+        "tier": "free",
+        "status": "active"
+    }
+    result = supabase.table("subscriptions").insert(new_sub).execute()
+    return result.data[0] if result.data else new_sub
+
+
+def is_premium_user(auth_user_id: str) -> bool:
+    """Check if a user has an active premium subscription."""
+    sub = get_user_subscription(auth_user_id)
+    return sub.get("tier") == "premium" and sub.get("status") == "active"
+
+
+@app.get("/api/subscription/status", response_model=SubscriptionResponse)
+def get_subscription_status(user: AuthUser = Depends(get_current_user)):
+    """Get the current user's subscription status."""
+    sub = get_user_subscription(user.user_id)
+    
+    is_premium = sub.get("tier") == "premium" and sub.get("status") == "active"
+    
+    return SubscriptionResponse(
+        id=sub.get("id", 0),
+        auth_user_id=sub.get("auth_user_id", user.user_id),
+        tier=sub.get("tier", "free"),
+        status=sub.get("status", "active"),
+        expires_at=sub.get("expires_at"),
+        payment_reference=sub.get("payment_reference"),
+        is_premium=is_premium
+    )
+
+
+@app.get("/api/subscription/check-feature/{feature_name}", response_model=FeatureAccessResponse)
+def check_feature_access(
+    feature_name: str,
+    user: AuthUser = Depends(get_current_user)
+):
+    """Check if the user has access to a specific feature.
+    
+    Premium features:
+    - ai_matching: AI-powered scholarship matching
+    - ai_mentor: Socratic Mentor chat assistance
+    - priority_support: Priority customer support
+    """
+    PREMIUM_FEATURES = ["ai_matching", "ai_mentor", "priority_support"]
+    
+    sub = get_user_subscription(user.user_id)
+    tier = sub.get("tier", "free")
+    is_premium = tier == "premium" and sub.get("status") == "active"
+    
+    if feature_name in PREMIUM_FEATURES:
+        if is_premium:
+            return FeatureAccessResponse(
+                has_access=True,
+                tier=tier,
+                message="Feature available",
+                upgrade_required=False
+            )
+        else:
+            return FeatureAccessResponse(
+                has_access=False,
+                tier=tier,
+                message=f"'{feature_name}' is a premium feature. Upgrade to access.",
+                upgrade_required=True
+            )
+    
+    # Feature is free for all
+    return FeatureAccessResponse(
+        has_access=True,
+        tier=tier,
+        message="Feature available",
+        upgrade_required=False
+    )
+
+
+@app.post("/api/subscription/webhook/toyyibpay")
+def toyyibpay_webhook(request: SubscriptionWebhookRequest):
+    """
+    Webhook endpoint for ToyyibPay payment callbacks.
+    ToyyibPay will call this endpoint when a payment is completed.
+    
+    Status codes from ToyyibPay:
+    - '1': Success
+    - '2': Pending
+    - '3': Failed
+    """
+    print(f"[ToyyibPay Webhook] Received: billcode={request.billcode}, status={request.status}")
+    
+    if request.status != "1":
+        print(f"[ToyyibPay Webhook] Payment not successful, status: {request.status}")
+        return {"status": "ignored", "message": "Payment not successful"}
+    
+    # order_id should contain the auth_user_id
+    auth_user_id = request.order_id
+    
+    try:
+        # Calculate expiry date (1 month from now)
+        expires_at = datetime.now() + timedelta(days=30)
+        
+        # Check if subscription exists
+        existing = supabase.table("subscriptions").select("id").eq("auth_user_id", auth_user_id).execute()
+        
+        subscription_data = {
+            "tier": "premium",
+            "status": "active",
+            "expires_at": expires_at.isoformat(),
+            "payment_reference": request.billcode,
+            "payment_provider": "toyyibpay",
+            "amount_paid": float(request.amount) if request.amount else None,
+            "currency": "MYR",
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        if existing.data:
+            # Update existing subscription
+            supabase.table("subscriptions").update(subscription_data).eq("auth_user_id", auth_user_id).execute()
+        else:
+            # Create new subscription
+            subscription_data["auth_user_id"] = auth_user_id
+            subscription_data["created_at"] = datetime.now().isoformat()
+            supabase.table("subscriptions").insert(subscription_data).execute()
+        
+        print(f"[ToyyibPay Webhook] Subscription activated for user: {auth_user_id}")
+        return {"status": "success", "message": "Subscription activated"}
+        
+    except Exception as e:
+        print(f"[ToyyibPay Webhook] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process webhook: {str(e)}")
+
+
+@app.post("/api/subscription/activate-manual")
+def activate_subscription_manual(
+    request: SubscriptionCreateRequest,
+    user: AuthUser = Depends(require_admin)
+):
+    """
+    Manually activate a subscription (admin only).
+    Useful for testing or manual upgrades.
+    """
+    # For manual activation, use the payment_reference to find the user
+    # or we could accept auth_user_id directly
+    
+    expires_at = datetime.now() + timedelta(days=30 * request.duration_months)
+    
+    subscription_data = {
+        "tier": "premium",
+        "status": "active",
+        "expires_at": expires_at.isoformat(),
+        "payment_reference": request.payment_reference,
+        "payment_provider": "manual",
+        "amount_paid": request.amount_paid,
+        "currency": "MYR",
+        "updated_at": datetime.now().isoformat()
+    }
+    
+    return {
+        "message": "Use this endpoint with auth_user_id to manually activate subscriptions",
+        "data": subscription_data
+    }
+
+
+@app.post("/api/subscription/activate/{auth_user_id}")
+def activate_user_subscription(
+    auth_user_id: str,
+    duration_months: int = 1,
+    user: AuthUser = Depends(require_admin)
+):
+    """
+    Activate premium subscription for a specific user (admin only).
+    """
+    expires_at = datetime.now() + timedelta(days=30 * duration_months)
+    
+    existing = supabase.table("subscriptions").select("id").eq("auth_user_id", auth_user_id).execute()
+    
+    subscription_data = {
+        "tier": "premium",
+        "status": "active",
+        "expires_at": expires_at.isoformat(),
+        "payment_provider": "admin_activated",
+        "updated_at": datetime.now().isoformat()
+    }
+    
+    if existing.data:
+        supabase.table("subscriptions").update(subscription_data).eq("auth_user_id", auth_user_id).execute()
+    else:
+        subscription_data["auth_user_id"] = auth_user_id
+        subscription_data["created_at"] = datetime.now().isoformat()
+        supabase.table("subscriptions").insert(subscription_data).execute()
+    
+    return {
+        "message": f"Premium subscription activated for {duration_months} month(s)",
+        "expires_at": expires_at.isoformat()
+    }
