@@ -175,7 +175,7 @@ export default function Home() {
       
       <div className="flex-1 flex overflow-hidden">
         <div className={`transition-all duration-300 overflow-auto ${selectedScholarship ? "w-1/2" : "w-full"}`}>
-          <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 ${selectedScholarship ? "max-w-full" : "max-w-7xl"}`}>
+          <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-full flex flex-col ${selectedScholarship ? "max-w-full" : "max-w-7xl"}`}>
             <div className="mb-8">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -328,7 +328,7 @@ export default function Home() {
               </div>
             )}
 
-            <footer className="bg-card border-t border-border mt-8 py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+            <footer className="bg-card border-t border-border mt-auto py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
               <div className="text-center text-muted-foreground text-sm">
                 <p data-testid="text-footer">
                   &copy; {new Date().getFullYear()} Ascendia. All rights reserved.
