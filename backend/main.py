@@ -51,7 +51,9 @@ openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def get_db_connection():
     """Get a direct PostgreSQL connection for bypassing PostgREST cache issues."""
-    return psycopg2.connect(os.getenv("DATABASE_URL"))
+    # Use Supabase database URL if available, fallback to Replit's DATABASE_URL
+    db_url = os.getenv("SUPABASE_DATABASE_URL") or os.getenv("DATABASE_URL")
+    return psycopg2.connect(db_url)
 
 def update_column_direct_sql(table: str, id_value: int, column: str, value):
     """Update a single column using direct SQL - bypasses PostgREST schema cache."""
