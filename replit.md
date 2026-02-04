@@ -66,6 +66,15 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
     - Premium features show upgrade modal instead of error when accessed by free users
 - **Payment Integration**: Prepared for ToyyibPay integration. Webhook endpoint expects billcode, order_id (auth_user_id), and status fields.
 
+### Pages
+- **Landing Page** (`/`): Marketing page for first-time visitors
+- **Scholarships Page** (`/scholarships`): Main scholarship discovery and search
+- **Subscription Page** (`/subscription`): Pricing comparison between Free and Premium tiers with upgrade button
+- **Dashboard Page** (`/dashboard`): User profile overview, subscription status, and quick actions
+- **Onboarding Page** (`/onboarding`): 3-step wizard for creating student profiles
+- **Admin Page** (`/admin`): Protected dashboard for managing scholarships and drafts
+- **Login/Signup Pages** (`/login`, `/signup`): Authentication pages
+
 ## External Dependencies
 - **Supabase**: PostgreSQL database for persistent storage, authentication, and real-time features. Utilizes its `vector` extension for AI-powered similarity search.
 - **OpenAI API**:
