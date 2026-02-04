@@ -101,15 +101,17 @@ export default function ScholarshipDetailPanel({
       className="h-full flex flex-col bg-zinc-900 dark:bg-zinc-900 text-white relative"
       data-testid="panel-scholarship-detail"
     >
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onClose}
-        className="absolute top-3 right-3 z-20 bg-black/40 hover:bg-black/60 text-white rounded-full"
-        data-testid="button-close-panel"
-      >
-        <X className="w-5 h-5" />
-      </Button>
+      <div className="absolute top-3 right-3" style={{ zIndex: 20 }}>
+        <Button
+          variant="secondary"
+          size="icon"
+          onClick={onClose}
+          className="rounded-full bg-black/50 border-transparent text-white"
+          data-testid="button-close-panel"
+        >
+          <X className="w-5 h-5" />
+        </Button>
+      </div>
 
       <div className="relative">
         <div 

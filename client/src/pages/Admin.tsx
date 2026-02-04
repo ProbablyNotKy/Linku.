@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
+import { Button } from "@/components/ui/button";
 
 interface FormData {
   title: string;
@@ -1521,11 +1522,11 @@ export default function Admin() {
                       data-testid="input-banner-file"
                     />
                     <div className="flex items-center gap-3">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploadingBanner}
-                        className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
                         data-testid="button-upload-banner"
                       >
                         {isUploadingBanner ? (
@@ -1539,19 +1540,21 @@ export default function Admin() {
                             <span>Upload Image</span>
                           </>
                         )}
-                      </button>
+                      </Button>
                       {formData.banner_image_url && (
                         <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
                           <ImageIcon className="w-4 h-4" />
                           <span>Image uploaded</span>
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setFormData(prev => ({ ...prev, banner_image_url: "" }))}
-                            className="text-red-500 hover:text-red-600"
+                            className="text-red-500"
                             data-testid="button-remove-banner"
                           >
                             <X className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
