@@ -139,3 +139,23 @@ export interface StudentProfile {
 }
 
 // SPM_ENGLISH_GRADES is now exported from constants.ts
+
+// Subscription types for premium tier management
+export interface Subscription {
+  id: number;
+  auth_user_id: string;
+  tier: 'free' | 'premium';
+  status: 'active' | 'expired' | 'cancelled';
+  expires_at?: string | null;
+  payment_reference?: string | null;
+  is_premium: boolean;
+}
+
+export interface FeatureAccess {
+  has_access: boolean;
+  tier: string;
+  message?: string | null;
+  upgrade_required: boolean;
+}
+
+export type PremiumFeature = 'ai_matching' | 'ai_mentor' | 'priority_support';

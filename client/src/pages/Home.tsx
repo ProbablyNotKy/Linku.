@@ -3,13 +3,15 @@ import { Link, useSearch } from "wouter";
 import { Scholarship, ScholarshipMatch } from "@shared/schema";
 import { fetchScholarships, matchWithProfile } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/hooks/use-subscription";
 import Header from "@/components/Header";
 import ScholarshipCard from "@/components/ScholarshipCard";
 import ScholarshipDetailPanel from "@/components/ScholarshipDetailPanel";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import ChatComponent from "@/components/ChatComponent";
-import { Search, Filter, X, Sparkles, MessageSquare } from "lucide-react";
+import { UpgradePrompt, PremiumBadge } from "@/components/UpgradePrompt";
+import { Search, Filter, X, Sparkles, MessageSquare, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,7 +37,8 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function Home() {
   const searchParams = useSearch();
-  const { hasProfile, profileId, profileLoading } = useAuth();
+  const { hasProfile, profileId, profileLoading, session } = useAuth();
+  const { isPremium, checkFeature } = useSubscription();
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [matchedScholarships, setMatchedScholarships] = useState<ScholarshipMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +50,11 @@ export default function Home() {
   const [magicMatchEnabled, setMagicMatchEnabled] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedScholarship, setSelectedScholarship] = useState<Scholarship | ScholarshipMatch | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState<{ name: string; description: string }>({
+    name: '',
+    description: '',
+  });
   
   const debouncedQuery = useDebounce(searchQuery, 500);
 
@@ -75,7 +83,7 @@ export default function Home() {
   }, []);
 
   const loadMatchedScholarships = useCallback(async () => {
-    if (!profileId) {
+    if (!profileId || !session?.access_token) {
       setMagicMatchEnabled(false);
       return;
     }
@@ -83,16 +91,26 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     try {
-      const matches = await matchWithProfile(profileId, 10);
+      const matches = await matchWithProfile(profileId, session.access_token, 10);
       setMatchedScholarships(matches);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to match scholarships:", err);
-      setError("Failed to find matches. Please try creating your profile again.");
-      setMagicMatchEnabled(false);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (errorMessage.includes('premium') || errorMessage.includes('403')) {
+        setUpgradeFeature({
+          name: 'AI Matching',
+          description: 'Get personalized scholarship recommendations powered by AI',
+        });
+        setShowUpgradePrompt(true);
+        setMagicMatchEnabled(false);
+      } else {
+        setError("Failed to find matches. Please try creating your profile again.");
+        setMagicMatchEnabled(false);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [profileId]);
+  }, [profileId, session?.access_token]);
 
   useEffect(() => {
     if (magicMatchEnabled && hasProfile) {
@@ -107,11 +125,37 @@ export default function Home() {
     setSelectedLevel("");
   };
 
-  const handleMagicMatchToggle = (enabled: boolean) => {
+  const handleMagicMatchToggle = async (enabled: boolean) => {
     if (enabled && !hasProfile) {
       return;
     }
+    if (enabled && !isPremium) {
+      const access = await checkFeature('ai_matching');
+      if (!access.has_access) {
+        setUpgradeFeature({
+          name: 'AI Matching',
+          description: 'Get personalized scholarship recommendations powered by AI',
+        });
+        setShowUpgradePrompt(true);
+        return;
+      }
+    }
     setMagicMatchEnabled(enabled);
+  };
+
+  const handleChatToggle = async () => {
+    if (!chatOpen && !isPremium) {
+      const access = await checkFeature('ai_mentor');
+      if (!access.has_access) {
+        setUpgradeFeature({
+          name: 'Socratic Mentor',
+          description: 'Get AI-powered guidance for your scholarship essays and applications',
+        });
+        setShowUpgradePrompt(true);
+        return;
+      }
+    }
+    setChatOpen(!chatOpen);
   };
 
   const hasFilters = searchQuery.trim() || selectedLevel;
@@ -308,7 +352,7 @@ export default function Home() {
       </div>
 
       <Button
-        onClick={() => setChatOpen(!chatOpen)}
+        onClick={handleChatToggle}
         className="fixed bottom-4 right-4 z-40 rounded-full w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
         size="icon"
         data-testid="button-open-chat"
@@ -317,6 +361,13 @@ export default function Home() {
       </Button>
 
       <ChatComponent isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+
+      <UpgradePrompt
+        isOpen={showUpgradePrompt}
+        onClose={() => setShowUpgradePrompt(false)}
+        featureName={upgradeFeature.name}
+        featureDescription={upgradeFeature.description}
+      />
     </main>
   );
 }

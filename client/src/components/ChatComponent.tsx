@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, X, MessageSquare } from "lucide-react";
+import { Send, Bot, User, Loader2, X, MessageSquare, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { chatWithCoach, ChatMessage } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChatComponentProps {
   isOpen: boolean;
@@ -10,9 +11,11 @@ interface ChatComponentProps {
 }
 
 export default function ChatComponent({ isOpen, onClose }: ChatComponentProps) {
+  const { session } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [premiumError, setPremiumError] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -36,6 +39,17 @@ export default function ChatComponent({ isOpen, onClose }: ChatComponentProps) {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+    
+    if (!session?.access_token) {
+      setMessages([
+        ...messages,
+        { 
+          role: "assistant", 
+          content: "Please sign in to use the Socratic Mentor." 
+        }
+      ]);
+      return;
+    }
 
     const userMessage = input.trim();
     setInput("");
@@ -43,19 +57,33 @@ export default function ChatComponent({ isOpen, onClose }: ChatComponentProps) {
     const newMessages: ChatMessage[] = [...messages, { role: "user", content: userMessage }];
     setMessages(newMessages);
     setIsLoading(true);
+    setPremiumError(false);
 
     try {
-      const response = await chatWithCoach(userMessage, messages);
+      const response = await chatWithCoach(userMessage, session.access_token, messages);
       setMessages(response.conversation_history);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Chat error:", err);
-      setMessages([
-        ...newMessages,
-        { 
-          role: "assistant", 
-          content: "I'm sorry, I encountered an error. Please try again in a moment." 
-        }
-      ]);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      
+      if (errorMessage.includes('premium') || errorMessage.includes('403')) {
+        setPremiumError(true);
+        setMessages([
+          ...newMessages,
+          { 
+            role: "assistant", 
+            content: "The Socratic Mentor is a premium feature. Please upgrade your subscription to continue receiving personalized guidance for your scholarship applications." 
+          }
+        ]);
+      } else {
+        setMessages([
+          ...newMessages,
+          { 
+            role: "assistant", 
+            content: "I'm sorry, I encountered an error. Please try again in a moment." 
+          }
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }

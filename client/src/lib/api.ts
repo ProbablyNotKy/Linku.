@@ -10,6 +10,9 @@ import {
   EDUCATION_LEVELS,
   MUET_BANDS,
   getIncomeRmValue,
+  Subscription,
+  FeatureAccess,
+  PremiumFeature,
 } from "@shared/schema";
 
 export { 
@@ -204,15 +207,15 @@ export interface ChatResponse {
   conversation_history: ChatMessage[];
 }
 
-export async function chatWithCoach(message: string, history?: ChatMessage[]): Promise<ChatResponse> {
+export async function chatWithCoach(message: string, accessToken: string, history?: ChatMessage[]): Promise<ChatResponse> {
   const response = await fetch("/api/chat/coach", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify({ message, conversation_history: history }),
   });
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to get coach response: ${error}`);
+    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(errorData.detail || `Failed to get coach response: ${response.status}`);
   }
   return response.json();
 }
@@ -413,10 +416,10 @@ export async function getMyProfile(accessToken: string): Promise<UserProfileResp
   return response.json();
 }
 
-export async function matchWithProfile(profileId: string, limit: number = 10): Promise<ScholarshipMatch[]> {
+export async function matchWithProfile(profileId: string, accessToken: string, limit: number = 10): Promise<ScholarshipMatch[]> {
   const response = await fetch("/api/profiles/match", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(accessToken),
     body: JSON.stringify({ profile_id: profileId, limit }),
   });
   if (!response.ok) {
@@ -425,3 +428,36 @@ export async function matchWithProfile(profileId: string, limit: number = 10): P
   }
   return response.json();
 }
+
+// ============================================================================
+// SUBSCRIPTION API FUNCTIONS
+// ============================================================================
+
+export async function getSubscriptionStatus(accessToken: string): Promise<Subscription> {
+  const response = await fetch("/api/subscription/status", {
+    method: "GET",
+    headers: getAuthHeaders(accessToken),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to get subscription status: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function checkFeatureAccess(
+  featureName: PremiumFeature, 
+  accessToken: string
+): Promise<FeatureAccess> {
+  const response = await fetch(`/api/subscription/check-feature/${featureName}`, {
+    method: "GET",
+    headers: getAuthHeaders(accessToken),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to check feature access: ${response.status}`);
+  }
+  return response.json();
+}
+
+export { type Subscription, type FeatureAccess, type PremiumFeature };
