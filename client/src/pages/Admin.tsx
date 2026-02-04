@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft, 
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
-  X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon, LogIn
+  X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon, LogIn,
+  Upload, Image as ImageIcon, Loader2
 } from "lucide-react";
 import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, EDUCATION_LEVELS } from "@shared/schema";
 import MDEditor from "@uiw/react-md-editor";
@@ -22,6 +23,7 @@ import {
   DraftUpdate
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUpload } from "@/hooks/use-upload";
 
 interface FormData {
   title: string;
@@ -109,6 +111,31 @@ export default function Admin() {
   const [draftFormData, setDraftFormData] = useState<DraftUpdate>({});
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isForbidden, setIsForbidden] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile, isUploading: isUploadingBanner } = useUpload({
+    onSuccess: (response) => {
+      setFormData(prev => ({ ...prev, banner_image_url: response.objectPath }));
+    },
+    onError: (error) => {
+      setErrorMessage(`Failed to upload image: ${error.message}`);
+    }
+  });
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Please select an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('Image must be less than 5MB');
+        return;
+      }
+      await uploadFile(file);
+    }
+  };
 
   const accessToken = session?.access_token;
   const isAuthenticated = !!user;
@@ -1483,17 +1510,60 @@ export default function Admin() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Banner Image URL
+                      Banner Image
                     </label>
                     <input
-                      type="url"
-                      name="banner_image_url"
-                      value={formData.banner_image_url}
-                      onChange={handleInputChange}
-                      placeholder="https://example.com/banner.jpg"
-                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      data-testid="input-banner-url"
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerUpload}
+                      className="hidden"
+                      data-testid="input-banner-file"
                     />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingBanner}
+                        className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                        data-testid="button-upload-banner"
+                      >
+                        {isUploadingBanner ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>Upload Image</span>
+                          </>
+                        )}
+                      </button>
+                      {formData.banner_image_url && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                          <ImageIcon className="w-4 h-4" />
+                          <span>Image uploaded</span>
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, banner_image_url: "" }))}
+                            className="text-red-500 hover:text-red-600"
+                            data-testid="button-remove-banner"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {formData.banner_image_url && (
+                      <div className="mt-2 relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                        <img 
+                          src={formData.banner_image_url} 
+                          alt="Banner preview" 
+                          className="w-full h-24 object-cover"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
