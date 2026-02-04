@@ -1,4 +1,5 @@
-import { Crown, Sparkles, X } from 'lucide-react';
+import { Link } from 'wouter';
+import { Crown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -66,13 +67,15 @@ export function UpgradePrompt({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Button 
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600"
-            data-testid="button-upgrade-now"
-          >
-            <Crown className="w-4 h-4 mr-2" />
-            Upgrade Now
-          </Button>
+          <Link href="/subscription" onClick={onClose}>
+            <Button 
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600"
+              data-testid="button-upgrade-now"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Upgrade Now
+            </Button>
+          </Link>
           <Button 
             variant="ghost" 
             onClick={onClose}
@@ -129,10 +132,12 @@ export function SubscriptionStatus({ tier, expiresAt }: SubscriptionStatusProps)
         <p className="font-medium text-foreground">Free Plan</p>
         <p className="text-xs text-muted-foreground">Upgrade to unlock all features</p>
       </div>
-      <Button size="sm" variant="outline" data-testid="button-upgrade-from-status">
-        <Crown className="w-3 h-3 mr-1" />
-        Upgrade
-      </Button>
+      <Link href="/subscription">
+        <Button size="sm" variant="outline" data-testid="button-upgrade-from-status">
+          <Crown className="w-3 h-3 mr-1" />
+          Upgrade
+        </Button>
+      </Link>
     </div>
   );
 }

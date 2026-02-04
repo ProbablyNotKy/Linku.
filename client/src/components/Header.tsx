@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Settings, LogIn, LogOut, User } from "lucide-react";
+import { Settings, LogIn, LogOut, User, LayoutDashboard, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
@@ -19,9 +19,19 @@ export default function Header() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 flex items-center gap-2">
             {!isLoading && user && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline" data-testid="text-user-email">{user.email}</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline" data-testid="text-user-email">{user.email}</span>
+                </div>
+                <Link 
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  data-testid="link-dashboard"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Link>
               </div>
             )}
           </div>
