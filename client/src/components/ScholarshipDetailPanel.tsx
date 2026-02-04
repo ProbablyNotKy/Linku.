@@ -98,9 +98,19 @@ export default function ScholarshipDetailPanel({
 
   return (
     <div 
-      className="h-full flex flex-col bg-zinc-900 dark:bg-zinc-900 text-white"
+      className="h-full flex flex-col bg-zinc-900 dark:bg-zinc-900 text-white relative"
       data-testid="panel-scholarship-detail"
     >
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onClose}
+        className="absolute top-3 right-3 z-20 bg-black/40 hover:bg-black/60 text-white rounded-full"
+        data-testid="button-close-panel"
+      >
+        <X className="w-5 h-5" />
+      </Button>
+
       <div className="relative">
         <div 
           className={`h-40 bg-gradient-to-br ${getProviderGradient(scholarship.provider)} relative overflow-hidden`}
@@ -115,16 +125,6 @@ export default function ScholarshipDetailPanel({
             {scholarship.provider.split(' ').slice(0, 2).join(' ')}
           </div>
         </div>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="absolute top-3 right-3 text-white"
-          data-testid="button-close-panel"
-        >
-          <X className="w-5 h-5" />
-        </Button>
 
         <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-lg bg-zinc-800 border-4 border-zinc-900 flex items-center justify-center shadow-lg">
           <Building2 className="w-8 h-8 text-white/80" />

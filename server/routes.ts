@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 const FASTAPI_URL = "http://127.0.0.1:8000";
 
@@ -366,6 +367,9 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to match scholarships" });
     }
   });
+
+  // Register object storage routes for file uploads
+  registerObjectStorageRoutes(app);
 
   return httpServer;
 }

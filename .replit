@@ -47,3 +47,6 @@ waitForPort = 5000
 
 [userenv.shared]
 VITE_ADMIN_EMAILS = "ascendiaeducation@gmail.com"
+
+[agent]
+integrations = ["javascript_object_storage:2.0.0"]
