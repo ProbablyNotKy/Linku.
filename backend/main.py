@@ -4,6 +4,7 @@ from typing import List, Optional
 import os
 import json
 import httpx
+import psycopg2
 from openai import OpenAI
 from markdownify import markdownify as md
 
@@ -47,6 +48,38 @@ app.add_middleware(
 )
 
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def get_db_connection():
+    """Get a direct PostgreSQL connection for bypassing PostgREST cache issues."""
+    return psycopg2.connect(os.getenv("DATABASE_URL"))
+
+def update_column_direct_sql(table: str, id_value: int, column: str, value):
+    """Update a single column using direct SQL - bypasses PostgREST schema cache."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if value is None:
+            cursor.execute(f'UPDATE {table} SET "{column}" = NULL WHERE id = %s', (id_value,))
+        elif isinstance(value, list):
+            cursor.execute(f'UPDATE {table} SET "{column}" = %s WHERE id = %s', (value, id_value))
+        elif isinstance(value, bool):
+            cursor.execute(f'UPDATE {table} SET "{column}" = %s WHERE id = %s', (value, id_value))
+        elif isinstance(value, (int, float)):
+            cursor.execute(f'UPDATE {table} SET "{column}" = %s WHERE id = %s', (value, id_value))
+        else:
+            cursor.execute(f'UPDATE {table} SET "{column}" = %s WHERE id = %s', (str(value), id_value))
+        conn.commit()
+        print(f"Column '{column}' updated via direct SQL successfully")
+        return True
+    except Exception as e:
+        print(f"Direct SQL update for '{column}' failed: {e}")
+        if conn:
+            conn.rollback()
+        return False
+    finally:
+        if conn:
+            conn.close()
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "gpt-4o"
@@ -310,14 +343,15 @@ def create_scholarship(
         scholarship_data = result.data[0]
         scholarship_id = scholarship_data.get("id")
         
-        # Update extra columns one at a time (may fail due to schema cache)
+        # Update extra columns one at a time - use direct SQL fallback if REST API fails
         for col in extra_columns:
             if col in data and data[col] is not None:
                 try:
                     supabase.table("scholarships").update({col: data[col]}).eq("id", scholarship_id).execute()
                 except Exception as col_error:
-                    print(f"Column '{col}' insert skipped (schema cache issue): {col_error}")
-                    continue
+                    print(f"Column '{col}' REST API failed (schema cache issue): {col_error}")
+                    print(f"Trying direct SQL fallback for column '{col}'...")
+                    update_column_direct_sql("scholarships", scholarship_id, col, data[col])
         
         # Generate embedding for the new scholarship
         try:
@@ -416,14 +450,15 @@ def update_scholarship(
             print(f"Core update failed: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to update scholarship: {str(e)}")
     
-    # Update extra columns one at a time - failures are logged but don't block
+    # Update extra columns one at a time - use direct SQL fallback if REST API fails
     for col in extra_columns:
         if col in data:
             try:
                 supabase.table("scholarships").update({col: data[col]}).eq("id", scholarship_id).execute()
             except Exception as col_error:
-                print(f"Column '{col}' update skipped (schema cache issue): {col_error}")
-                continue
+                print(f"Column '{col}' REST API failed (schema cache issue): {col_error}")
+                print(f"Trying direct SQL fallback for column '{col}'...")
+                update_column_direct_sql("scholarships", scholarship_id, col, data[col])
     
     # Fetch final result
     result = supabase.table("scholarships").select("*").eq("id", scholarship_id).execute()
