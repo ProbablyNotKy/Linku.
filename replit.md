@@ -43,10 +43,28 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
 - **Scholarship Discovery**: Search and filter scholarships by title and education level, with responsive display.
 - **Scholarship Detail View**: Clicking on a scholarship card opens a sliding drawer panel from the right with full details including rich text descriptions (markdown rendered), eligibility requirements, study areas, and an "Apply Now" button. Expired scholarships show "Application Closed" instead.
 - **Rich Text Descriptions**: Scholarships can have detailed markdown descriptions edited via MDEditor in the admin panel, rendered with react-markdown in the detail drawer.
-- **AI Matching**: Students complete a 3-step onboarding wizard to create a profile (academics, eligibility, interests), which generates an embedding for personalized scholarship recommendations.
-- **Socratic Mentor Chat**: An AI assistant helps students develop scholarship application essays and responses using guiding questions based on the STAR method.
+- **AI Matching**: Students complete a 3-step onboarding wizard to create a profile (academics, eligibility, interests), which generates an embedding for personalized scholarship recommendations. **Premium feature**.
+- **Socratic Mentor Chat**: An AI assistant helps students develop scholarship application essays and responses using guiding questions based on the STAR method. **Premium feature**.
 - **Admin Discovery Agent**: An AI-powered tool extracts scholarship data from URLs, creates drafts for admin review, and helps populate the database with new opportunities.
 - **Deadline Management**: Scholarship cards visually indicate urgent (<30 days) and expired deadlines.
+
+### Subscription / Monetization System
+- **Tiers**: Free and Premium tiers. Free users can browse scholarships; Premium users access AI Matching and Socratic Mentor.
+- **Database**: `subscriptions` table tracks user subscription status with fields: `auth_user_id`, `tier`, `status`, `expires_at`, `payment_reference`, `payment_provider`, `amount_paid`.
+- **Premium Features** (require active premium subscription):
+    - `ai_matching`: AI-powered personalized scholarship recommendations
+    - `ai_mentor`: Socratic Mentor chat for essay guidance
+    - `priority_support`: Priority customer support
+- **Backend Endpoints**:
+    - `GET /api/subscription/status`: Get current user's subscription status
+    - `GET /api/subscription/check-feature/{feature_name}`: Check access to a specific premium feature
+    - `POST /api/subscription/webhook/toyyibpay`: Webhook for ToyyibPay payment callbacks (ready for integration)
+    - `POST /api/subscription/activate/{auth_user_id}`: Admin-only endpoint to manually activate subscriptions
+- **Frontend Integration**:
+    - `useSubscription` hook provides subscription status and feature access checks
+    - `UpgradePrompt` component displays when users try to access premium features without subscription
+    - Premium features show upgrade modal instead of error when accessed by free users
+- **Payment Integration**: Prepared for ToyyibPay integration. Webhook endpoint expects billcode, order_id (auth_user_id), and status fields.
 
 ## External Dependencies
 - **Supabase**: PostgreSQL database for persistent storage, authentication, and real-time features. Utilizes its `vector` extension for AI-powered similarity search.
