@@ -7,6 +7,7 @@ import { useSubscription } from "@/hooks/use-subscription";
 import Header from "@/components/Header";
 import ScholarshipCard from "@/components/ScholarshipCard";
 import ScholarshipDetailPanel from "@/components/ScholarshipDetailPanel";
+import ScholarshipDetailDrawer from "@/components/ScholarshipDetailDrawer";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import ChatComponent from "@/components/ChatComponent";
@@ -56,6 +57,15 @@ export default function Home() {
     description: '',
   });
   
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const debouncedQuery = useDebounce(searchQuery, 500);
 
   useEffect(() => {
@@ -174,24 +184,24 @@ export default function Home() {
       <Header />
       
       <div className="flex-1 flex overflow-hidden">
-        <div className={`transition-all duration-300 overflow-auto ${selectedScholarship ? "w-1/2" : "w-full"}`}>
-          <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-full flex flex-col ${selectedScholarship ? "max-w-full" : "max-w-7xl"}`}>
-            <div className="mb-8">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className={`transition-all duration-300 overflow-auto ${selectedScholarship ? "w-full md:w-1/2" : "w-full"}`}>
+          <div className={`mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 min-h-full flex flex-col ${selectedScholarship ? "max-w-full" : "max-w-7xl"}`}>
+            <div className="mb-4 sm:mb-8">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground" data-testid="text-section-title">
+                    <h2 className="text-lg sm:text-2xl font-bold text-foreground" data-testid="text-section-title">
                       {magicMatchEnabled ? "Your Best Matches" : "Available Scholarships"}
                     </h2>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-sm sm:text-base text-muted-foreground mt-0.5 sm:mt-1">
                       {magicMatchEnabled 
                         ? "Scholarships ranked by AI based on your profile"
                         : "Discover opportunities that match your educational journey"}
                     </p>
                   </div>
                   {!isLoading && !error && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Search className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                      <Search className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span data-testid="text-scholarship-count">
                         {displayScholarships.length} opportunities found
                       </span>
@@ -199,63 +209,61 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-                    {!magicMatchEnabled && (
-                      <>
-                        <div className="relative flex-1 w-full sm:w-auto sm:min-w-[280px]">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            type="text"
-                            placeholder="Search scholarships..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                            data-testid="input-search"
-                          />
-                        </div>
+                <div className="flex flex-col gap-3">
+                  {!magicMatchEnabled && (
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Search scholarships..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                          data-testid="input-search"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <Select 
+                          value={selectedLevel || "all"} 
+                          onValueChange={(val) => setSelectedLevel(val === "all" ? "" : val)}
+                        >
+                          <SelectTrigger className="w-full sm:w-[180px]" data-testid="select-level">
+                            <SelectValue placeholder="Education Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Levels</SelectItem>
+                            <SelectItem value="SPM">SPM</SelectItem>
+                            <SelectItem value="Diploma">Diploma</SelectItem>
+                            <SelectItem value="Degree">Degree</SelectItem>
+                            <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                            <SelectItem value="Postgraduate">Postgraduate</SelectItem>
+                            <SelectItem value="Masters">Masters</SelectItem>
+                          </SelectContent>
+                        </Select>
                         
-                        <div className="flex items-center gap-2">
-                          <Filter className="w-4 h-4 text-muted-foreground" />
-                          <Select 
-                            value={selectedLevel || "all"} 
-                            onValueChange={(val) => setSelectedLevel(val === "all" ? "" : val)}
+                        {hasFilters && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleClearFilters}
+                            className="text-muted-foreground flex-shrink-0"
+                            data-testid="button-clear-filters"
                           >
-                            <SelectTrigger className="w-[180px]" data-testid="select-level">
-                              <SelectValue placeholder="Education Level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Levels</SelectItem>
-                              <SelectItem value="SPM">SPM</SelectItem>
-                              <SelectItem value="Diploma">Diploma</SelectItem>
-                              <SelectItem value="Degree">Degree</SelectItem>
-                              <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                              <SelectItem value="Postgraduate">Postgraduate</SelectItem>
-                              <SelectItem value="Masters">Masters</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          {hasFilters && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleClearFilters}
-                              className="text-muted-foreground"
-                              data-testid="button-clear-filters"
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Clear
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                            <X className="w-4 h-4 mr-1" />
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg px-4 py-2 border border-indigo-200 dark:border-indigo-800">
-                      <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2 border border-indigo-200 dark:border-indigo-800">
+                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-xs sm:text-sm font-medium text-indigo-900 dark:text-indigo-200">
                         Magic Match
                       </span>
                       <Switch
@@ -270,11 +278,12 @@ export default function Home() {
                       <Link href="/onboarding">
                         <Button 
                           variant="default"
-                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                          size="sm"
+                          className="bg-gradient-to-r from-indigo-600 to-purple-600"
                           data-testid="button-create-profile"
                         >
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Create AI Profile
+                          <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          <span className="text-xs sm:text-sm">Create AI Profile</span>
                         </Button>
                       </Link>
                     )}
@@ -313,7 +322,7 @@ export default function Home() {
               </div>
             ) : (
               <div 
-                className={`grid gap-6 ${selectedScholarship ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}
+                className={`grid gap-3 sm:gap-6 ${selectedScholarship ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}
                 data-testid="scholarship-grid"
               >
                 {displayScholarships.map((scholarship) => (
@@ -328,7 +337,7 @@ export default function Home() {
               </div>
             )}
 
-            <footer className="bg-card border-t border-border mt-auto py-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+            <footer className="bg-card border-t border-border mt-auto py-4 sm:py-8 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8">
               <div className="text-center text-muted-foreground text-sm">
                 <p data-testid="text-footer">
                   &copy; {new Date().getFullYear()} Ascendia. All rights reserved.
@@ -342,7 +351,7 @@ export default function Home() {
         </div>
 
         {selectedScholarship && (
-          <div className="w-1/2 h-full border-l border-border">
+          <div className="hidden md:block w-1/2 h-full border-l border-border">
             <ScholarshipDetailPanel 
               scholarship={selectedScholarship}
               onClose={handleCloseDetail}
@@ -351,9 +360,15 @@ export default function Home() {
         )}
       </div>
 
+      <ScholarshipDetailDrawer
+        scholarship={selectedScholarship}
+        isOpen={!!selectedScholarship && isMobile}
+        onClose={handleCloseDetail}
+      />
+
       <Button
         onClick={handleChatToggle}
-        className="fixed bottom-4 right-4 z-40 rounded-full w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg"
+        className="fixed bottom-4 right-4 z-40 rounded-full w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg"
         size="icon"
         data-testid="button-open-chat"
       >
