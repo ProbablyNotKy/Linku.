@@ -2253,27 +2253,42 @@ async def create_toyyibpay_bill(
         raise HTTPException(status_code=502, detail=f"Failed to connect to ToyyibPay: {str(e)}")
 
 
-@app.post("/api/subscription/webhook/toyyibpay")
+@app.api_route("/api/subscription/webhook/toyyibpay", methods=["GET", "POST"])
 async def toyyibpay_webhook(request: Request):
     """
     Webhook endpoint for ToyyibPay payment callbacks.
-    ToyyibPay sends form-encoded data, not JSON.
+    ToyyibPay may send data as query parameters (GET) or form-encoded POST body.
+    This handler supports both formats.
     
     Status codes from ToyyibPay:
     - '1': Success
     - '2': Pending
     - '3': Failed
     """
-    form_data = await request.form()
+    query_params = dict(request.query_params)
     
-    refno = form_data.get("refno", "")
-    status = form_data.get("status", "")
-    billcode = form_data.get("billcode", "")
-    order_id = form_data.get("order_id", "")
-    amount = form_data.get("amount", "")
-    transaction_id = form_data.get("transaction_id", "")
+    form_params = {}
+    if request.method == "POST":
+        try:
+            form_data = await request.form()
+            form_params = dict(form_data)
+        except Exception:
+            pass
     
-    print(f"[ToyyibPay Webhook] Received: billcode={billcode}, status={status}, order_id={order_id}, refno={refno}")
+    params = {**query_params, **form_params}
+    
+    print(f"[ToyyibPay Webhook] Raw query_params: {query_params}")
+    print(f"[ToyyibPay Webhook] Raw form_params: {form_params}")
+    print(f"[ToyyibPay Webhook] Merged params: {params}")
+    
+    refno = params.get("refno", "")
+    status = params.get("status", "")
+    billcode = params.get("billcode", "")
+    order_id = params.get("order_id", "")
+    amount = params.get("amount", "")
+    transaction_id = params.get("transaction_id", "")
+    
+    print(f"[ToyyibPay Webhook] Parsed: billcode={billcode}, status={status}, order_id={order_id}, refno={refno}")
     
     if str(status) != "1":
         print(f"[ToyyibPay Webhook] Payment not successful, status: {status}")

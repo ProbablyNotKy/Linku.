@@ -47,6 +47,7 @@ waitForPort = 5000
 
 [userenv.shared]
 VITE_ADMIN_EMAILS = "ascendiaeducation@gmail.com"
+PUBLIC_APP_URL = "https://ascendiaedu.com"
 
 [agent]
 integrations = ["javascript_object_storage:2.0.0"]

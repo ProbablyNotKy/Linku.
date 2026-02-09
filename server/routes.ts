@@ -502,18 +502,27 @@ export async function registerRoutes(
     }
   });
 
-  // ToyyibPay webhook (form-encoded data from ToyyibPay)
-  app.post("/api/subscription/webhook/toyyibpay", async (req, res) => {
+  // ToyyibPay webhook - handles both GET (query params) and POST (form-encoded) from ToyyibPay
+  const toyyibpayWebhookHandler = async (req: any, res: any) => {
     try {
-      const formData = new URLSearchParams();
-      for (const [key, value] of Object.entries(req.body)) {
-        formData.append(key, String(value));
+      const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+      const targetUrl = `${FASTAPI_URL}/api/subscription/webhook/toyyibpay${queryString ? `?${queryString}` : ""}`;
+
+      let response;
+      if (req.method === "POST" && req.body && Object.keys(req.body).length > 0) {
+        const formData = new URLSearchParams();
+        for (const [key, value] of Object.entries(req.body)) {
+          formData.append(key, String(value));
+        }
+        response = await fetch(targetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData.toString(),
+        });
+      } else {
+        response = await fetch(targetUrl, { method: "GET" });
       }
-      const response = await fetch(`${FASTAPI_URL}/api/subscription/webhook/toyyibpay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
-      });
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
         return res.status(response.status).json({ error: errorData.detail || "Webhook processing failed" });
@@ -524,7 +533,9 @@ export async function registerRoutes(
       console.error("Error processing ToyyibPay webhook:", error);
       res.status(500).json({ error: "Failed to process webhook" });
     }
-  });
+  };
+  app.get("/api/subscription/webhook/toyyibpay", toyyibpayWebhookHandler);
+  app.post("/api/subscription/webhook/toyyibpay", toyyibpayWebhookHandler);
 
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
