@@ -351,9 +351,13 @@ export async function registerRoutes(
 
   app.post("/api/profiles/match", async (req, res) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
       const response = await fetch(`${FASTAPI_URL}/profiles/match`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(req.body),
       });
       if (!response.ok) {
