@@ -64,7 +64,13 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
     - `useSubscription` hook provides subscription status and feature access checks
     - `UpgradePrompt` component displays when users try to access premium features without subscription
     - Premium features show upgrade modal instead of error when accessed by free users
-- **Payment Integration**: Prepared for ToyyibPay integration. Webhook endpoint expects billcode, order_id (auth_user_id), and status fields.
+- **Payment Integration (ToyyibPay)**:
+    - **Price**: RM 10/month for Premium
+    - **Flow**: User clicks "Upgrade Now" on `/subscription` page -> fills in name/email/phone -> backend creates a bill via ToyyibPay API -> user is redirected to ToyyibPay payment page -> after payment, ToyyibPay sends callback to webhook -> user redirected to `/payment-status` page
+    - `POST /api/subscription/create-bill`: Creates a ToyyibPay bill and returns payment URL (requires auth)
+    - `POST /api/subscription/webhook/toyyibpay`: Webhook receives form-encoded callback from ToyyibPay with refno, status, billcode, order_id, amount
+    - **Environment Variables**: `TOYYIBPAY_SECRET_KEY`, `TOYYIBPAY_CATEGORY_CODE` (secrets), `TOYYIBPAY_API_URL` (defaults to https://toyyibpay.com)
+    - **Return URL**: `/payment-status` page displays success/pending/failed status based on `status_id` query param
 
 ### Pages
 - **Landing Page** (`/`): Marketing page for first-time visitors
@@ -73,6 +79,7 @@ Ascendia is built as a polyglot monorepo. The core components include a FastAPI 
 - **Dashboard Page** (`/dashboard`): User profile overview, subscription status, and quick actions
 - **Onboarding Page** (`/onboarding`): 3-step wizard for creating student profiles
 - **Admin Page** (`/admin`): Protected dashboard for managing scholarships and drafts
+- **Payment Status Page** (`/payment-status`): Shows payment result after ToyyibPay redirect (success/pending/failed)
 - **Login/Signup Pages** (`/login`, `/signup`): Authentication pages
 
 ## External Dependencies

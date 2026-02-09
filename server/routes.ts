@@ -478,6 +478,54 @@ export async function registerRoutes(
     }
   });
 
+  // ToyyibPay create bill
+  app.post("/api/subscription/create-bill", async (req, res) => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/create-bill`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to create bill" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error creating ToyyibPay bill:", error);
+      res.status(500).json({ error: "Failed to create payment bill" });
+    }
+  });
+
+  // ToyyibPay webhook (form-encoded data from ToyyibPay)
+  app.post("/api/subscription/webhook/toyyibpay", async (req, res) => {
+    try {
+      const formData = new URLSearchParams();
+      for (const [key, value] of Object.entries(req.body)) {
+        formData.append(key, String(value));
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/webhook/toyyibpay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Webhook processing failed" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error processing ToyyibPay webhook:", error);
+      res.status(500).json({ error: "Failed to process webhook" });
+    }
+  });
+
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
 

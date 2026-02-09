@@ -14,6 +14,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Subscription from "@/pages/Subscription";
 import Dashboard from "@/pages/Dashboard";
+import PaymentStatus from "@/pages/PaymentStatus";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/subscription" component={Subscription} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/payment-status" component={PaymentStatus} />
       <Route component={NotFound} />
     </Switch>
   );

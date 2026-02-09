@@ -1,10 +1,16 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { Check, X, Crown, Sparkles, ArrowLeft, Zap, MessageSquare, HeadphonesIcon } from "lucide-react";
+import { Check, X, Crown, Sparkles, ArrowLeft, Zap, MessageSquare, HeadphonesIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/use-subscription";
+import { createPaymentBill } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 
 interface PlanFeature {
@@ -26,8 +32,16 @@ const features: PlanFeature[] = [
 ];
 
 export default function Subscription() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { subscription, isPremium, isLoading } = useSubscription();
+  const { toast } = useToast();
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: user?.email || "",
+    phone: "",
+  });
 
   const expiryDate = subscription?.expires_at 
     ? new Date(subscription.expires_at).toLocaleDateString('en-MY', { 
@@ -36,6 +50,49 @@ export default function Subscription() {
         day: 'numeric' 
       })
     : null;
+
+  const handleUpgradeClick = () => {
+    if (!user || !session) {
+      window.location.href = "/login";
+      return;
+    }
+    setFormData(prev => ({ ...prev, email: user.email || prev.email }));
+    setShowPaymentDialog(true);
+  };
+
+  const handlePayment = async () => {
+    if (!session?.access_token) {
+      toast({ title: "Please sign in first", variant: "destructive" });
+      return;
+    }
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
+      toast({ title: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const result = await createPaymentBill(
+        {
+          email: formData.email,
+          name: formData.name,
+          phone: formData.phone,
+        },
+        session.access_token
+      );
+
+      window.location.href = result.payment_url;
+    } catch (err) {
+      console.error("Payment error:", err);
+      toast({
+        title: "Payment Error",
+        description: err instanceof Error ? err.message : "Failed to create payment. Please try again.",
+        variant: "destructive",
+      });
+      setPaymentLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background flex flex-col">
@@ -124,7 +181,7 @@ export default function Subscription() {
                 </CardTitle>
                 <CardDescription>Unlock the full power of AI matching</CardDescription>
                 <div className="pt-4">
-                  <span className="text-4xl font-bold text-foreground">RM 29.90</span>
+                  <span className="text-4xl font-bold text-foreground">RM 10</span>
                   <span className="text-muted-foreground">/month</span>
                 </div>
               </CardHeader>
@@ -160,9 +217,13 @@ export default function Subscription() {
                     Current Plan
                   </Button>
                 ) : (
-                  <Button className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600" data-testid="button-upgrade">
+                  <Button 
+                    className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600" 
+                    onClick={handleUpgradeClick}
+                    data-testid="button-upgrade"
+                  >
                     <Crown className="w-4 h-4 mr-2" />
-                    Upgrade Now
+                    Upgrade Now - RM 10/month
                   </Button>
                 )}
               </CardContent>
@@ -205,10 +266,96 @@ export default function Subscription() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground mt-8">
-            Questions? Contact us at support@ascendia.my
+            Secure payment powered by ToyyibPay. Questions? Contact us at support@ascendia.my
           </p>
         </div>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-amber-500" />
+              Upgrade to Premium
+            </DialogTitle>
+            <DialogDescription>
+              Complete your details below to proceed with payment of RM 10.00/month.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="payment-name">Full Name</Label>
+              <Input
+                id="payment-name"
+                placeholder="Your full name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                data-testid="input-payment-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment-email">Email</Label>
+              <Input
+                id="payment-email"
+                type="email"
+                placeholder="your@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                data-testid="input-payment-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment-phone">Phone Number</Label>
+              <Input
+                id="payment-phone"
+                type="tel"
+                placeholder="01X-XXXXXXX"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                data-testid="input-payment-phone"
+              />
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-muted-foreground">Plan</span>
+                <span className="font-medium text-foreground">Premium</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-muted-foreground">Duration</span>
+                <span className="font-medium text-foreground">1 Month</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-sm border-t pt-1 mt-1">
+                <span className="text-muted-foreground font-medium">Total</span>
+                <span className="font-bold text-foreground text-base text-green-600 dark:text-green-400">RM 10.00</span>
+              </div>
+            </div>
+
+            <Button 
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600"
+              onClick={handlePayment}
+              disabled={paymentLoading}
+              data-testid="button-proceed-payment"
+            >
+              {paymentLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating payment...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Proceed to Payment
+                </>
+              )}
+            </Button>
+
+            <p className="text-xs text-center text-muted-foreground">
+              You'll be redirected to ToyyibPay to complete your payment securely.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

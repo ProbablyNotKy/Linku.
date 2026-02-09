@@ -503,4 +503,35 @@ export async function deactivateUserPremium(authUserId: string, accessToken: str
   }
 }
 
+// ============================================================================
+// TOYYIBPAY PAYMENT FUNCTIONS
+// ============================================================================
+
+export interface CreateBillParams {
+  email: string;
+  name: string;
+  phone: string;
+}
+
+export interface CreateBillResponse {
+  bill_code: string;
+  payment_url: string;
+}
+
+export async function createPaymentBill(
+  params: CreateBillParams,
+  accessToken: string
+): Promise<CreateBillResponse> {
+  const response = await fetch("/api/subscription/create-bill", {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(errorData.error || errorData.detail || `Failed to create payment: ${response.status}`);
+  }
+  return response.json();
+}
+
 export { type Subscription, type FeatureAccess, type PremiumFeature };

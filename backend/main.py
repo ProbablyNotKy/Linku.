@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
@@ -2154,51 +2154,160 @@ def check_feature_access(
     )
 
 
+TOYYIBPAY_SECRET_KEY = os.getenv("TOYYIBPAY_SECRET_KEY", "")
+TOYYIBPAY_CATEGORY_CODE = os.getenv("TOYYIBPAY_CATEGORY_CODE", "")
+TOYYIBPAY_API_URL = os.getenv("TOYYIBPAY_API_URL", "https://toyyibpay.com")
+PREMIUM_PRICE_RM = 10
+PREMIUM_PRICE_CENTS = PREMIUM_PRICE_RM * 100
+
+
+@app.post("/api/subscription/create-bill")
+async def create_toyyibpay_bill(
+    request: Request,
+    user: AuthUser = Depends(get_current_user)
+):
+    """
+    Create a ToyyibPay bill for premium subscription.
+    Returns the payment URL for the user to complete payment.
+    """
+    if not TOYYIBPAY_SECRET_KEY or not TOYYIBPAY_CATEGORY_CODE:
+        raise HTTPException(status_code=500, detail="Payment system not configured")
+
+    body = await request.json()
+    bill_name = body.get("bill_name", "Ascendia Premium")
+    bill_email = body.get("email", user.email or "")
+    bill_phone = body.get("phone", "")
+    bill_name_customer = body.get("name", "")
+
+    app_url = os.getenv("REPLIT_DEV_DOMAIN", "")
+    if app_url and not app_url.startswith("http"):
+        app_url = f"https://{app_url}"
+    
+    deployed_url = os.getenv("REPLIT_DEPLOYMENT_URL", "")
+    if deployed_url and not deployed_url.startswith("http"):
+        deployed_url = f"https://{deployed_url}"
+
+    public_url = os.getenv("PUBLIC_APP_URL", "")
+    base_url = public_url or deployed_url or app_url
+
+    if not base_url:
+        raise HTTPException(status_code=500, detail="Application URL not configured. Cannot create payment bill.")
+
+    return_url = f"{base_url}/payment-status"
+    callback_url = f"{base_url}/api/subscription/webhook/toyyibpay"
+
+    bill_data = {
+        "userSecretKey": TOYYIBPAY_SECRET_KEY,
+        "categoryCode": TOYYIBPAY_CATEGORY_CODE,
+        "billName": bill_name[:30],
+        "billDescription": "Ascendia Premium 1 Month"[:100],
+        "billPriceSetting": 1,
+        "billPayorInfo": 1,
+        "billAmount": str(PREMIUM_PRICE_CENTS),
+        "billReturnUrl": return_url,
+        "billCallbackUrl": callback_url,
+        "billExternalReferenceNo": user.id,
+        "billTo": bill_name_customer[:100] if bill_name_customer else bill_email[:100],
+        "billEmail": bill_email,
+        "billPhone": bill_phone or "0000000000",
+        "billPaymentChannel": "0",
+        "billChargeToCustomer": "2",
+    }
+
+    print(f"[ToyyibPay] Creating bill for user {user.id}, callback: {callback_url}, return: {return_url}")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{TOYYIBPAY_API_URL}/index.php/api/createBill",
+                data=bill_data,
+                timeout=30.0
+            )
+            
+            print(f"[ToyyibPay] API response status: {response.status_code}")
+            print(f"[ToyyibPay] API response body: {response.text}")
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"ToyyibPay API error: {response.status_code}"
+                )
+            
+            result = response.json()
+            
+            if isinstance(result, list) and len(result) > 0 and "BillCode" in result[0]:
+                bill_code = result[0]["BillCode"]
+                payment_url = f"{TOYYIBPAY_API_URL}/{bill_code}"
+                return {
+                    "bill_code": bill_code,
+                    "payment_url": payment_url,
+                }
+            else:
+                print(f"[ToyyibPay] Unexpected response: {result}")
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Unexpected response from ToyyibPay: {result}"
+                )
+    except httpx.RequestError as e:
+        print(f"[ToyyibPay] Request error: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Failed to connect to ToyyibPay: {str(e)}")
+
+
 @app.post("/api/subscription/webhook/toyyibpay")
-def toyyibpay_webhook(request: SubscriptionWebhookRequest):
+async def toyyibpay_webhook(request: Request):
     """
     Webhook endpoint for ToyyibPay payment callbacks.
-    ToyyibPay will call this endpoint when a payment is completed.
+    ToyyibPay sends form-encoded data, not JSON.
     
     Status codes from ToyyibPay:
     - '1': Success
     - '2': Pending
     - '3': Failed
     """
-    print(f"[ToyyibPay Webhook] Received: billcode={request.billcode}, status={request.status}")
+    form_data = await request.form()
     
-    if request.status != "1":
-        print(f"[ToyyibPay Webhook] Payment not successful, status: {request.status}")
+    refno = form_data.get("refno", "")
+    status = form_data.get("status", "")
+    billcode = form_data.get("billcode", "")
+    order_id = form_data.get("order_id", "")
+    amount = form_data.get("amount", "")
+    transaction_id = form_data.get("transaction_id", "")
+    
+    print(f"[ToyyibPay Webhook] Received: billcode={billcode}, status={status}, order_id={order_id}, refno={refno}")
+    
+    if str(status) != "1":
+        print(f"[ToyyibPay Webhook] Payment not successful, status: {status}")
         return {"status": "ignored", "message": "Payment not successful"}
     
-    # order_id should contain the auth_user_id
-    auth_user_id = request.order_id
+    auth_user_id = order_id
+    
+    if not auth_user_id:
+        print("[ToyyibPay Webhook] No order_id (auth_user_id) received")
+        return {"status": "error", "message": "Missing order_id"}
+    
+    if not billcode:
+        print("[ToyyibPay Webhook] No billcode received")
+        return {"status": "error", "message": "Missing billcode"}
     
     try:
-        # Calculate expiry date (1 month from now)
         expires_at = datetime.now() + timedelta(days=30)
         
-        # Check if subscription exists
         existing = supabase.table("subscriptions").select("id").eq("auth_user_id", auth_user_id).execute()
         
         subscription_data = {
             "tier": "premium",
             "status": "active",
             "expires_at": expires_at.isoformat(),
-            "payment_reference": request.billcode,
+            "payment_reference": billcode,
             "payment_provider": "toyyibpay",
-            "amount_paid": float(request.amount) if request.amount else None,
-            "currency": "MYR",
+            "amount_paid": float(amount) if amount else PREMIUM_PRICE_RM,
             "updated_at": datetime.now().isoformat()
         }
         
         if existing.data:
-            # Update existing subscription
             supabase.table("subscriptions").update(subscription_data).eq("auth_user_id", auth_user_id).execute()
         else:
-            # Create new subscription
             subscription_data["auth_user_id"] = auth_user_id
-            subscription_data["created_at"] = datetime.now().isoformat()
             supabase.table("subscriptions").insert(subscription_data).execute()
         
         print(f"[ToyyibPay Webhook] Subscription activated for user: {auth_user_id}")
