@@ -460,4 +460,47 @@ export async function checkFeatureAccess(
   return response.json();
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  created_at: string;
+  tier: string;
+  subscription_status: string;
+  expires_at: string | null;
+}
+
+export async function fetchAdminUsers(accessToken: string): Promise<AdminUser[]> {
+  const response = await fetch("/api/admin/users", {
+    method: "GET",
+    headers: getAuthHeaders(accessToken),
+  });
+  if (!response.ok) {
+    throw new Error(`[${response.status}] Failed to fetch users`);
+  }
+  const data = await response.json();
+  return data.users || [];
+}
+
+export async function activateUserPremium(authUserId: string, accessToken: string, durationMonths: number = 1): Promise<void> {
+  const response = await fetch(`/api/subscription/activate/${authUserId}?duration_months=${durationMonths}`, {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(errorData.detail || `Failed to activate premium: ${response.status}`);
+  }
+}
+
+export async function deactivateUserPremium(authUserId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`/api/subscription/deactivate/${authUserId}`, {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(errorData.detail || `Failed to deactivate premium: ${response.status}`);
+  }
+}
+
 export { type Subscription, type FeatureAccess, type PremiumFeature };

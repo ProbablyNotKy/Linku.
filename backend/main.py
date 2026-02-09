@@ -2272,3 +2272,80 @@ def activate_user_subscription(
         "message": f"Premium subscription activated for {duration_months} month(s)",
         "expires_at": expires_at.isoformat()
     }
+
+
+@app.post("/api/subscription/deactivate/{auth_user_id}")
+def deactivate_user_subscription(
+    auth_user_id: str,
+    user: AuthUser = Depends(require_admin)
+):
+    """
+    Deactivate premium subscription for a specific user (admin only).
+    Reverts the user to the free tier.
+    """
+    existing = supabase.table("subscriptions").select("id").eq("auth_user_id", auth_user_id).execute()
+    
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="No subscription found for this user")
+    
+    supabase.table("subscriptions").update({
+        "tier": "free",
+        "status": "cancelled",
+        "updated_at": datetime.now().isoformat()
+    }).eq("auth_user_id", auth_user_id).execute()
+    
+    return {"message": "Subscription deactivated, user reverted to free tier"}
+
+
+@app.get("/api/admin/users")
+def list_users_with_subscriptions(
+    user: AuthUser = Depends(require_admin)
+):
+    """
+    List all auth users with their subscription status (admin only).
+    Uses Supabase admin API to list users.
+    """
+    try:
+        users_response = supabase.auth.admin.list_users()
+        users_list = users_response if isinstance(users_response, list) else getattr(users_response, 'users', [])
+        
+        all_subs = supabase.table("subscriptions").select("*").execute()
+        sub_map = {}
+        for s in (all_subs.data or []):
+            sub_map[s["auth_user_id"]] = s
+        
+        result = []
+        for u in users_list:
+            uid = u.id if hasattr(u, 'id') else u.get('id', '')
+            email = u.email if hasattr(u, 'email') else u.get('email', '')
+            created = u.created_at if hasattr(u, 'created_at') else u.get('created_at', '')
+            
+            sub = sub_map.get(uid, None)
+            tier = sub.get("tier", "free") if sub else "free"
+            status = sub.get("status", "none") if sub else "none"
+            expires_at = sub.get("expires_at") if sub else None
+            
+            if tier == "premium" and status == "active" and expires_at:
+                try:
+                    exp = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+                    if exp < datetime.now(exp.tzinfo):
+                        tier = "free"
+                        status = "expired"
+                except Exception:
+                    pass
+            
+            result.append({
+                "id": uid,
+                "email": email,
+                "created_at": str(created),
+                "tier": tier,
+                "subscription_status": status,
+                "expires_at": str(expires_at) if expires_at else None,
+            })
+        
+        result.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return {"users": result, "total": len(result)}
+    except Exception as e:
+        print(f"[Admin Users] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")

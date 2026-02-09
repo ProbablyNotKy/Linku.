@@ -4,7 +4,7 @@ import {
   Shield, CheckCircle2, AlertCircle, Plus, ArrowLeft, 
   Pencil, Trash2, Search, GraduationCap, Clock, AlertTriangle,
   X, Globe, Eye, ChevronDown, ChevronUp, Bot, LinkIcon, LogIn,
-  Upload, Image as ImageIcon, Loader2
+  Upload, Image as ImageIcon, Loader2, Users, Crown, CrownIcon
 } from "lucide-react";
 import { Scholarship, MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, EDUCATION_LEVELS } from "@shared/schema";
 import MDEditor from "@uiw/react-md-editor";
@@ -20,7 +20,11 @@ import {
   rejectDraft,
   updateDraft,
   Draft,
-  DraftUpdate
+  DraftUpdate,
+  AdminUser,
+  fetchAdminUsers,
+  activateUserPremium,
+  deactivateUserPremium,
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
@@ -99,7 +103,7 @@ export default function Admin() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"scholarships" | "discovery">("scholarships");
+  const [activeTab, setActiveTab] = useState<"scholarships" | "discovery" | "users">("scholarships");
   const [scrapeUrlList, setScrapeUrlList] = useState<string[]>([""]);
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -112,6 +116,11 @@ export default function Admin() {
   const [draftFormData, setDraftFormData] = useState<DraftUpdate>({});
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isForbidden, setIsForbidden] = useState(false);
+
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadFile, isUploading: isUploadingBanner } = useUpload({
@@ -147,6 +156,42 @@ export default function Admin() {
       return true;
     }
     return false;
+  };
+
+  const loadUsers = async () => {
+    if (!accessToken) return;
+    setIsLoadingUsers(true);
+    try {
+      const users = await fetchAdminUsers(accessToken);
+      setAdminUsers(users);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+      if (!handleApiError(err)) {
+        setErrorMessage("Failed to load users");
+      }
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const handleTogglePremium = async (userId: string, currentTier: string) => {
+    if (!accessToken) return;
+    setTogglingUserId(userId);
+    try {
+      if (currentTier === "premium") {
+        await deactivateUserPremium(userId, accessToken);
+        setSuccessMessage("Premium deactivated successfully");
+      } else {
+        await activateUserPremium(userId, accessToken, 1);
+        setSuccessMessage("Premium activated for 1 month");
+      }
+      await loadUsers();
+    } catch (err) {
+      console.error("Failed to toggle premium:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Failed to update subscription");
+    } finally {
+      setTogglingUserId(null);
+    }
   };
 
   const loadDrafts = async () => {
@@ -307,6 +352,26 @@ export default function Admin() {
       loadDrafts();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === "users" && adminUsers.length === 0) {
+      loadUsers();
+    }
+  }, [isAuthenticated, activeTab]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userSearchQuery.trim()) return adminUsers;
+    const q = userSearchQuery.toLowerCase();
+    return adminUsers.filter(u =>
+      u.email.toLowerCase().includes(q) ||
+      u.tier.toLowerCase().includes(q)
+    );
+  }, [adminUsers, userSearchQuery]);
+
+  const userStats = useMemo(() => {
+    const premium = adminUsers.filter(u => u.tier === "premium" && u.subscription_status === "active").length;
+    return { total: adminUsers.length, premium, free: adminUsers.length - premium };
+  }, [adminUsers]);
 
   const filteredScholarships = useMemo(() => {
     if (!searchQuery.trim()) return scholarships;
@@ -646,6 +711,23 @@ export default function Admin() {
             {drafts.length > 0 && (
               <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                 {drafts.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("users")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "users"
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+            }`}
+            data-testid="tab-users"
+          >
+            <Users className="w-4 h-4" />
+            Users
+            {userStats.premium > 0 && (
+              <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {userStats.premium}
               </span>
             )}
           </button>
@@ -1963,6 +2045,180 @@ export default function Admin() {
           </div>
         </div>
       )}
+
+        {activeTab === "users" && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-2">
+                    <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-users-total">{userStats.total}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 dark:bg-amber-900 rounded-lg p-2">
+                    <Crown className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-users-premium">{userStats.premium}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Premium</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                    <Users className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="text-users-free">{userStats.free}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Free</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    All Users
+                  </h2>
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:flex-none">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm w-full sm:w-64"
+                        data-testid="input-search-users"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadUsers}
+                      disabled={isLoadingUsers}
+                      data-testid="button-refresh-users"
+                    >
+                      {isLoadingUsers ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Refresh"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {isLoadingUsers ? (
+                <div className="p-8 text-center">
+                  <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400">Loading users...</p>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  {userSearchQuery ? "No users match your search" : "No users found"}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full" data-testid="table-users">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700 text-left">
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400">Email</th>
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400">Tier</th>
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hidden md:table-cell">Status</th>
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hidden lg:table-cell">Expires</th>
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hidden lg:table-cell">Joined</th>
+                        <th className="px-4 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => {
+                        const isPremium = u.tier === "premium" && u.subscription_status === "active";
+                        return (
+                          <tr
+                            key={u.id}
+                            className="border-b border-gray-100 dark:border-gray-700/50 last:border-0"
+                            data-testid={`row-user-${u.id}`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {isPremium && <Crown className="w-4 h-4 text-amber-500 flex-shrink-0" />}
+                                <span className="text-sm text-gray-900 dark:text-white truncate max-w-[200px]" data-testid={`text-email-${u.id}`}>
+                                  {u.email}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  isPremium
+                                    ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                }`}
+                                data-testid={`badge-tier-${u.id}`}
+                              >
+                                {isPremium ? "Premium" : "Free"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              <span className="text-sm text-gray-600 dark:text-gray-400" data-testid={`text-status-${u.id}`}>
+                                {u.subscription_status === "none" ? "No subscription" : u.subscription_status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 hidden lg:table-cell">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {u.expires_at
+                                  ? new Date(u.expires_at).toLocaleDateString()
+                                  : "—"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 hidden lg:table-cell">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {u.created_at
+                                  ? new Date(u.created_at).toLocaleDateString()
+                                  : "—"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant={isPremium ? "outline" : "default"}
+                                size="sm"
+                                onClick={() => handleTogglePremium(u.id, u.tier)}
+                                disabled={togglingUserId === u.id}
+                                data-testid={`button-toggle-premium-${u.id}`}
+                              >
+                                {togglingUserId === u.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : isPremium ? (
+                                  "Deactivate"
+                                ) : (
+                                  <>
+                                    <Crown className="w-4 h-4 mr-1" />
+                                    Activate
+                                  </>
+                                )}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
     </main>
   );
 }
