@@ -2206,7 +2206,7 @@ async def create_toyyibpay_bill(
         "billAmount": str(PREMIUM_PRICE_CENTS),
         "billReturnUrl": return_url,
         "billCallbackUrl": callback_url,
-        "billExternalReferenceNo": user.id,
+        "billExternalReferenceNo": user.user_id,
         "billTo": bill_name_customer[:100] if bill_name_customer else bill_email[:100],
         "billEmail": bill_email,
         "billPhone": bill_phone or "0000000000",
@@ -2214,7 +2214,7 @@ async def create_toyyibpay_bill(
         "billChargeToCustomer": "2",
     }
 
-    print(f"[ToyyibPay] Creating bill for user {user.id}, callback: {callback_url}, return: {return_url}")
+    print(f"[ToyyibPay] Creating bill for user {user.user_id}, callback: {callback_url}, return: {return_url}")
 
     try:
         async with httpx.AsyncClient() as client:

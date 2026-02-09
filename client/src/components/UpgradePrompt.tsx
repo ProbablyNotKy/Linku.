@@ -60,7 +60,7 @@ export function UpgradePrompt({
 
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">
-              RM 29.90<span className="text-sm font-normal text-muted-foreground">/month</span>
+              RM 10<span className="text-sm font-normal text-muted-foreground">/month</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">Cancel anytime</p>
           </div>
