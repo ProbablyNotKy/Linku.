@@ -368,6 +368,112 @@ export async function registerRoutes(
     }
   });
 
+  // Admin user management
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/admin/users`, { headers });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to fetch users" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Subscription endpoints
+  app.get("/api/subscription/status", async (req, res) => {
+    try {
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/status`, { headers });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to get subscription status" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error getting subscription status:", error);
+      res.status(500).json({ error: "Failed to get subscription status" });
+    }
+  });
+
+  app.get("/api/subscription/check-feature/:featureName", async (req, res) => {
+    try {
+      const headers: Record<string, string> = {};
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/check-feature/${req.params.featureName}`, { headers });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to check feature access" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error checking feature access:", error);
+      res.status(500).json({ error: "Failed to check feature access" });
+    }
+  });
+
+  app.post("/api/subscription/activate/:authUserId", async (req, res) => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const params = new URLSearchParams();
+      if (req.query.duration_months) params.append("duration_months", req.query.duration_months as string);
+      const queryString = params.toString();
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/activate/${req.params.authUserId}${queryString ? `?${queryString}` : ""}`, {
+        method: "POST",
+        headers,
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to activate subscription" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error activating subscription:", error);
+      res.status(500).json({ error: "Failed to activate subscription" });
+    }
+  });
+
+  app.post("/api/subscription/deactivate/:authUserId", async (req, res) => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (req.headers.authorization) {
+        headers["Authorization"] = req.headers.authorization;
+      }
+      const response = await fetch(`${FASTAPI_URL}/api/subscription/deactivate/${req.params.authUserId}`, {
+        method: "POST",
+        headers,
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        return res.status(response.status).json({ error: errorData.detail || "Failed to deactivate subscription" });
+      }
+      const data = await response.json();
+      res.json(data);
+    } catch (error) {
+      console.error("Error deactivating subscription:", error);
+      res.status(500).json({ error: "Failed to deactivate subscription" });
+    }
+  });
+
   // Register object storage routes for file uploads
   registerObjectStorageRoutes(app);
 
