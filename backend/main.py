@@ -2305,6 +2305,28 @@ async def toyyibpay_webhook(request: Request):
         return {"status": "error", "message": "Missing billcode"}
     
     try:
+        async with httpx.AsyncClient() as client:
+            verify_response = await client.post(
+                f"{TOYYIBPAY_API_URL}/index.php/api/getBillTransactions",
+                data={"billCode": billcode, "billpaymentStatus": "1"},
+                timeout=15.0
+            )
+            if verify_response.status_code == 200:
+                txns = verify_response.json()
+                if isinstance(txns, list) and len(txns) > 0:
+                    verified_ref = txns[0].get("billExternalReferenceNo", "")
+                    if verified_ref and verified_ref != auth_user_id:
+                        print(f"[ToyyibPay Webhook] order_id mismatch: callback={auth_user_id}, verified={verified_ref}")
+                        auth_user_id = verified_ref
+                    print(f"[ToyyibPay Webhook] Payment verified via ToyyibPay API for billcode: {billcode}")
+                else:
+                    print(f"[ToyyibPay Webhook] Warning: No successful transactions found for billcode: {billcode}, proceeding anyway")
+            else:
+                print(f"[ToyyibPay Webhook] Warning: Could not verify with ToyyibPay API (status {verify_response.status_code}), proceeding with callback data")
+    except Exception as verify_err:
+        print(f"[ToyyibPay Webhook] Warning: Verification request failed: {verify_err}, proceeding with callback data")
+    
+    try:
         expires_at = datetime.now() + timedelta(days=30)
         
         existing = supabase.table("subscriptions").select("id").eq("auth_user_id", auth_user_id).execute()
