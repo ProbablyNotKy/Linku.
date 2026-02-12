@@ -223,8 +223,34 @@ def create_scholarship_text(scholarship: dict) -> str:
     return " ".join(filter(None, parts))
 
 
+def ensure_columns():
+    """Ensure new columns exist in the scholarships table."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            ALTER TABLE scholarships ADD COLUMN IF NOT EXISTS institution_type TEXT;
+            ALTER TABLE scholarships ALTER COLUMN amount DROP NOT NULL;
+        """)
+        conn.commit()
+        print("[DB] Ensured institution_type column exists.")
+    except Exception as e:
+        print(f"[DB] Column migration note: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
+
+
 @app.on_event("startup")
 def startup_event():
+    try:
+        ensure_columns()
+    except Exception as e:
+        print(f"[DB] Column migration warning: {e}")
+    
     try:
         result = supabase.table("scholarships").select("id").limit(1).execute()
         count = len(result.data)
@@ -327,7 +353,7 @@ def create_scholarship(
         data["education_level"] = []
     
     # Core columns - these are the oldest and definitely in schema cache
-    core_columns = ["title", "provider", "amount", "deadline", "education_level", "url", "tags"]
+    core_columns = ["title", "provider", "amount", "deadline", "education_level", "institution_type", "url", "tags"]
     
     # All other columns may or may not be in cache - update one at a time after insert
     extra_columns = [
@@ -432,7 +458,7 @@ def update_scholarship(
         data["education_level"] = []
     
     # Core columns - these are the oldest and definitely in schema cache
-    core_columns = ["title", "provider", "amount", "deadline", "education_level", "url", "tags"]
+    core_columns = ["title", "provider", "amount", "deadline", "education_level", "institution_type", "url", "tags"]
     
     # All other columns may or may not be in cache - update one at a time
     extra_columns = [

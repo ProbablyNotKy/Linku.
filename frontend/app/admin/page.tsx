@@ -9,6 +9,7 @@ import Link from "next/link";
 const ADMIN_KEY = "Ascendia2024";
 
 const EDUCATION_LEVELS = ["SPM", "Diploma", "Degree", "Masters", "Undergraduate", "Postgraduate"];
+const INSTITUTION_TYPES = ["IPTA", "IPTS", "Both"];
 
 export default function AdminPage() {
   const [adminKey, setAdminKey] = useState("");
@@ -26,6 +27,7 @@ export default function AdminPage() {
     amount: "",
     deadline: "",
     education_level: "",
+    institution_type: "",
     url: "",
     tags: "",
   });
@@ -70,6 +72,7 @@ export default function AdminPage() {
       amount: "",
       deadline: "",
       education_level: "",
+      institution_type: "",
       url: "",
       tags: "",
     });
@@ -80,9 +83,10 @@ export default function AdminPage() {
     setFormData({
       title: scholarship.title,
       provider: scholarship.provider,
-      amount: scholarship.amount,
+      amount: scholarship.amount || "",
       deadline: scholarship.deadline,
       education_level: scholarship.education_level,
+      institution_type: scholarship.institution_type || "",
       url: scholarship.url || "",
       tags: scholarship.tags?.join(", ") || "",
     });
@@ -122,9 +126,10 @@ export default function AdminPage() {
       const scholarshipData: ScholarshipCreate = {
         title: formData.title,
         provider: formData.provider,
-        amount: formData.amount,
+        amount: formData.amount || undefined,
         deadline: formData.deadline,
         education_level: formData.education_level,
+        institution_type: formData.institution_type || undefined,
         url: formData.url || undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       };
@@ -288,14 +293,13 @@ export default function AdminPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Amount <span className="text-red-500">*</span>
+                  Amount
                 </label>
                 <input
                   type="text"
                   name="amount"
                   value={formData.amount}
                   onChange={handleInputChange}
-                  required
                   placeholder="e.g., RM 50,000 / year"
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   data-testid="input-amount"
@@ -333,6 +337,26 @@ export default function AdminPage() {
                   {EDUCATION_LEVELS.map((level) => (
                     <option key={level} value={level}>
                       {level}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Institution Type
+                </label>
+                <select
+                  name="institution_type"
+                  value={formData.institution_type}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                  data-testid="select-institution-type"
+                >
+                  <option value="">Select type...</option>
+                  {INSTITUTION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
                     </option>
                   ))}
                 </select>
@@ -435,6 +459,7 @@ export default function AdminPage() {
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Provider</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Deadline</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Level</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Institution</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Actions</th>
                   </tr>
                 </thead>
@@ -453,6 +478,9 @@ export default function AdminPage() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
                           {scholarship.education_level}
                         </span>
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-600">
+                        {scholarship.institution_type || "—"}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">

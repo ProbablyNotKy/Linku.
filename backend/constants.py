@@ -64,6 +64,12 @@ EDUCATION_LEVELS = [
     {"value": "PhD", "label": "PhD"},
 ]
 
+INSTITUTION_TYPES = [
+    {"value": "IPTA", "label": "IPTA (Public)"},
+    {"value": "IPTS", "label": "IPTS (Private)"},
+    {"value": "Both", "label": "Both IPTA & IPTS"},
+]
+
 SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"]
 
 MUET_BANDS = [1, 2, 3, 4, 5]

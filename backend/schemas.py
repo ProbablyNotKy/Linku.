@@ -9,9 +9,10 @@ from constants import MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES
 class ScholarshipCreate(BaseModel):
     title: str
     provider: str
-    amount: str
+    amount: Optional[str] = None
     deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -40,9 +41,10 @@ class ScholarshipResponse(BaseModel):
     id: int
     title: str
     provider: str
-    amount: str
+    amount: Optional[str] = None
     deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -74,9 +76,10 @@ class ScholarshipMatchResponse(BaseModel):
     id: int
     title: str
     provider: str
-    amount: str
+    amount: Optional[str] = None
     deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     tags: Optional[List[str]] = None
     study_areas: Optional[List[str]] = None
@@ -159,6 +162,7 @@ class ScholarshipExtraction(BaseModel):
     amount: Optional[str] = None
     deadline: Optional[str] = None
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     description: Optional[str] = None
     source_quote: Optional[str] = None
     study_areas: Optional[List[str]] = None
@@ -194,6 +198,7 @@ class DraftResponse(BaseModel):
     amount: Optional[str] = None
     deadline: Optional[str] = None
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     description: Optional[str] = None
     source_quote: Optional[str] = None
@@ -217,6 +222,7 @@ class DraftUpdateRequest(BaseModel):
     amount: Optional[str] = None
     deadline: Optional[str] = None
     education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     description: Optional[str] = None
     study_areas: Optional[List[str]] = None

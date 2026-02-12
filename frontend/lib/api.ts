@@ -60,9 +60,10 @@ export async function fetchScholarshipById(id: number): Promise<Scholarship> {
 export interface ScholarshipCreate {
   title: string;
   provider: string;
-  amount: string;
+  amount?: string;
   deadline: string;
   education_level: string;
+  institution_type?: string;
   url?: string;
   tags?: string[];
 }
