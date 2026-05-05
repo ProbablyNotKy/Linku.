@@ -14,7 +14,10 @@ interface ScholarshipCardProps {
   isSelected?: boolean;
 }
 
-function getDeadlineStatus(deadline: string): "urgent" | "normal" | "expired" {
+function getDeadlineStatus(deadline: string | null | undefined, deadlineType?: string | null): "urgent" | "normal" | "expired" | "tba" | "rolling" {
+  if (deadlineType === "TBA" || !deadline) return "tba";
+  if (deadlineType === "Rolling") return "rolling";
+
   const deadlineDate = new Date(deadline);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -57,9 +60,12 @@ function getMatchScoreBgColor(score: number): string {
 export default function ScholarshipCard({ scholarship, showMatchInfo = false, onViewDetails, isSelected = false }: ScholarshipCardProps) {
   const [insightsOpen, setInsightsOpen] = useState(false);
   
-  const deadlineStatus = getDeadlineStatus(scholarship.deadline);
+  const deadlineStatus = getDeadlineStatus(scholarship.deadline, scholarship.deadline_type);
   const isExpired = deadlineStatus === "expired";
   const isUrgent = deadlineStatus === "urgent";
+  const isTBA = deadlineStatus === "tba";
+  const isRolling = deadlineStatus === "rolling";
+  const isEstimated = scholarship.deadline_type === "Estimated";
   
   const matchData = showMatchInfo && isScholarshipMatch(scholarship) ? scholarship : null;
   const matchScore = matchData?.match_score ?? 0;
@@ -169,15 +175,32 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false, on
 
             <div className="flex items-center flex-wrap gap-2">
               <Calendar className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-              <span 
-                className={`text-sm font-medium ${
-                  isExpired ? "text-muted-foreground line-through" : 
-                  isUrgent ? "text-red-600" : "text-amber-600"
-                }`}
-                data-testid={`text-deadline-${scholarship.id}`}
-              >
-                {isExpired ? "Expired: " : "Deadline: "}{formatDate(scholarship.deadline)}
-              </span>
+              {isTBA ? (
+                <span
+                  className="text-sm font-medium text-muted-foreground"
+                  data-testid={`text-deadline-${scholarship.id}`}
+                >
+                  Deadline: TBA
+                </span>
+              ) : isRolling ? (
+                <span
+                  className="text-sm font-medium text-emerald-600 dark:text-emerald-400"
+                  data-testid={`text-deadline-${scholarship.id}`}
+                >
+                  Rolling Admission
+                </span>
+              ) : (
+                <span
+                  className={`text-sm font-medium ${
+                    isExpired ? "text-muted-foreground line-through" :
+                    isUrgent ? "text-red-600" : "text-amber-600"
+                  }`}
+                  data-testid={`text-deadline-${scholarship.id}`}
+                >
+                  {isExpired ? "Expired: " : "Deadline: "}{formatDate(scholarship.deadline!)}
+                  {isEstimated && " (Est.)"}
+                </span>
+              )}
               {isUrgent && !isExpired && (
                 <Badge variant="destructive" className="text-xs">
                   Urgent
@@ -186,6 +209,16 @@ export default function ScholarshipCard({ scholarship, showMatchInfo = false, on
               {isExpired && (
                 <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
                   Expired
+                </Badge>
+              )}
+              {isTBA && (
+                <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
+                  TBA
+                </Badge>
+              )}
+              {isRolling && (
+                <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                  Rolling
                 </Badge>
               )}
             </div>

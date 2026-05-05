@@ -23,7 +23,10 @@ interface ScholarshipDetailDrawerProps {
   onClose: () => void;
 }
 
-function getDeadlineStatus(deadline: string): "urgent" | "normal" | "expired" {
+function getDeadlineStatus(deadline: string | null | undefined, deadlineType?: string | null): "urgent" | "normal" | "expired" | "tba" | "rolling" {
+  if (deadlineType === "TBA" || !deadline) return "tba";
+  if (deadlineType === "Rolling") return "rolling";
+
   const deadlineDate = new Date(deadline);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -60,9 +63,12 @@ export default function ScholarshipDetailDrawer({
 }: ScholarshipDetailDrawerProps) {
   if (!scholarship) return null;
   
-  const deadlineStatus = getDeadlineStatus(scholarship.deadline);
+  const deadlineStatus = getDeadlineStatus(scholarship.deadline, scholarship.deadline_type);
   const isExpired = deadlineStatus === "expired";
   const isUrgent = deadlineStatus === "urgent";
+  const isTBA = deadlineStatus === "tba";
+  const isRolling = deadlineStatus === "rolling";
+  const isEstimated = scholarship.deadline_type === "Estimated";
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -96,6 +102,16 @@ export default function ScholarshipDetailDrawer({
                 Expired
               </Badge>
             )}
+            {isTBA && (
+              <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-600">
+                TBA
+              </Badge>
+            )}
+            {isRolling && (
+              <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                Rolling
+              </Badge>
+            )}
           </div>
           <SheetTitle 
             className="text-xl font-bold text-foreground text-left mt-2"
@@ -126,6 +142,7 @@ export default function ScholarshipDetailDrawer({
               </div>
               
               <div className={`rounded-lg p-4 ${
+                isTBA || isRolling ? "bg-gray-50 dark:bg-gray-800" :
                 isExpired ? "bg-gray-50 dark:bg-gray-800" :
                 isUrgent ? "bg-red-50 dark:bg-red-900/20" : "bg-amber-50 dark:bg-amber-900/20"
               }`}>
@@ -133,15 +150,32 @@ export default function ScholarshipDetailDrawer({
                   <Calendar className="w-4 h-4" />
                   Deadline
                 </div>
-                <p 
-                  className={`text-lg font-semibold ${
-                    isExpired ? "text-gray-500 line-through" :
-                    isUrgent ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
-                  }`}
-                  data-testid="text-deadline-drawer"
-                >
-                  {formatDate(scholarship.deadline)}
-                </p>
+                {isTBA ? (
+                  <p
+                    className="text-lg font-semibold text-muted-foreground"
+                    data-testid="text-deadline-drawer"
+                  >
+                    To Be Announced
+                  </p>
+                ) : isRolling ? (
+                  <p
+                    className="text-lg font-semibold text-emerald-600 dark:text-emerald-400"
+                    data-testid="text-deadline-drawer"
+                  >
+                    Rolling Admission
+                  </p>
+                ) : (
+                  <p
+                    className={`text-lg font-semibold ${
+                      isExpired ? "text-gray-500 line-through" :
+                      isUrgent ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
+                    }`}
+                    data-testid="text-deadline-drawer"
+                  >
+                    {formatDate(scholarship.deadline!)}
+                    {isEstimated && <span className="text-sm font-normal ml-1">(Est.)</span>}
+                  </p>
+                )}
               </div>
             </div>
 
