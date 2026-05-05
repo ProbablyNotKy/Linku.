@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -5,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import SplashScreen from "@/components/SplashScreen";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Scholarships from "@/pages/Home";
@@ -34,12 +36,30 @@ function Router() {
 }
 
 function App() {
+  const [splashDone, setSplashDone] = useState(() => {
+    try {
+      return !!sessionStorage.getItem("linku_splash");
+    } catch {
+      return true;
+    }
+  });
+
+  const handleSplashComplete = () => {
+    try {
+      sessionStorage.setItem("linku_splash", "1");
+    } catch {}
+    setSplashDone(true);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
+            {!splashDone && (
+              <SplashScreen onComplete={handleSplashComplete} />
+            )}
             <Router />
           </TooltipProvider>
         </AuthProvider>

@@ -25,11 +25,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function clearAscendiaLocalStorage() {
+function clearLinkuLocalStorage() {
   const keysToRemove: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && key.startsWith('ascendia_')) {
+    if (key && (key.startsWith('ascendia_') || key.startsWith('linku_'))) {
       keysToRemove.push(key);
     }
   }
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    clearAscendiaLocalStorage();
+    clearLinkuLocalStorage();
     setHasProfile(false);
     setProfileId(null);
     setIsAdmin(false);

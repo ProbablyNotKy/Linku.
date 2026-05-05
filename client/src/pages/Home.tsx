@@ -340,7 +340,7 @@ export default function Home() {
             <footer className="bg-card border-t border-border mt-auto py-4 sm:py-8 -mx-3 sm:-mx-6 lg:-mx-8 px-3 sm:px-6 lg:px-8">
               <div className="text-center text-muted-foreground text-sm">
                 <p data-testid="text-footer">
-                  &copy; {new Date().getFullYear()} Ascendia. All rights reserved.
+                  &copy; {new Date().getFullYear()} Linku. All rights reserved.
                 </p>
                 <p className="mt-1">
                   Helping Malaysian students discover educational opportunities.

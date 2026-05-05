@@ -637,7 +637,7 @@ export default function Admin() {
             <div>
               <h1 className="text-2xl font-bold">Admin Dashboard</h1>
               <p className="text-indigo-200 mt-1">
-                Manage Ascendia Scholarships
+                Manage Linku Scholarships
                 {user?.email && (
                   <span className="ml-2 text-indigo-300" data-testid="text-admin-email">
                     ({user.email})

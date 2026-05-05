@@ -68,7 +68,7 @@ export default function Signup() {
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>
-            Join Ascendia to discover scholarships tailored for you
+            Join Linku to discover scholarships tailored for you
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

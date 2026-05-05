@@ -1,8 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { Settings, LogIn, LogOut, User, LayoutDashboard, Crown } from "lucide-react";
+import { Settings, LogIn, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   const { user, signOut, isLoading, isAdmin } = useAuth();
@@ -14,88 +13,106 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-            {!isLoading && user && (
-              <div className="flex items-center gap-1 sm:gap-3">
-                <Link 
-                  href="/dashboard"
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                  data-testid="link-dashboard"
-                >
-                  <User className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline" data-testid="text-user-email">{user.email}</span>
-                </Link>
-              </div>
-            )}
-          </div>
-          <Link href="/" className="text-center flex-shrink-0">
-            <h1 
-              className="text-xl sm:text-3xl md:text-4xl font-bold tracking-tight"
-              style={{ color: "#4f46e5" }}
+    <header className="sticky top-0 z-50 bg-[#0B0F19]/80 backdrop-blur-xl border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/">
+            <span
+              className="text-2xl font-black tracking-tight text-white hover:opacity-80 transition-opacity cursor-pointer"
               data-testid="text-brand-title"
             >
-              Ascendia
-            </h1>
-            <p 
-              className="hidden sm:block mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-400"
-              data-testid="text-brand-subtitle"
-            >
-              Malaysia's Premier Opportunity Navigator
-            </p>
+              Linku<span className="text-blue-500">.</span>
+            </span>
           </Link>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <ThemeToggle />
-            {isAdmin && (
-              <Link 
-                href="/admin"
-                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                data-testid="link-admin"
+
+          <nav className="hidden md:flex items-center gap-6">
+            <Link
+              href="/scholarships"
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Scholarships
+            </Link>
+            <Link
+              href="/subscription"
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Pricing
+            </Link>
+            {!isLoading && user && (
+              <Link
+                href="/dashboard"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+                data-testid="link-dashboard"
               >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
+                Dashboard
               </Link>
             )}
-            {!isLoading && (
-              user ? (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={handleSignOut}
-                  data-testid="button-signout-mobile"
-                  className="sm:hidden"
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
-              ) : (
-                <Link href="/login">
-                  <Button variant="default" size="icon" data-testid="button-signin-mobile" className="sm:hidden">
-                    <LogIn className="w-4 h-4" />
-                  </Button>
-                </Link>
-              )
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+                data-testid="link-admin"
+              >
+                <Settings className="w-4 h-4 inline mr-1" />
+                Admin
+              </Link>
             )}
+          </nav>
+
+          <div className="flex items-center gap-2">
             {!isLoading && (
               user ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleSignOut}
-                  data-testid="button-signout-desktop"
-                  className="hidden sm:flex"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </Button>
-              ) : (
-                <Link href="/login">
-                  <Button variant="default" size="sm" data-testid="button-signin-desktop" className="hidden sm:flex">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign In
+                <>
+                  <span
+                    className="hidden sm:block text-sm text-gray-500 max-w-[160px] truncate"
+                    data-testid="text-user-email"
+                  >
+                    {user.email}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSignOut}
+                    data-testid="button-signout-desktop"
+                    className="text-gray-400 hover:text-white hover:bg-white/10"
+                  >
+                    <LogOut className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sign Out</span>
                   </Button>
-                </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      data-testid="button-signin-desktop"
+                      className="hidden sm:flex text-gray-400 hover:text-white hover:bg-white/10"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid="button-signin-mobile"
+                      className="sm:hidden text-gray-400 hover:text-white hover:bg-white/10"
+                    >
+                      <LogIn className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button
+                      size="sm"
+                      data-testid="button-signup"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
               )
             )}
           </div>

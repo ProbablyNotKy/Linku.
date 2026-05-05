@@ -31,7 +31,7 @@ export default function ChatComponent({ isOpen, onClose }: ChatComponentProps) {
       setMessages([
         {
           role: "assistant",
-          content: "Hello! I'm your Ascendia Socratic Mentor. I'm here to help you craft compelling scholarship applications by guiding you to discover and articulate your own unique story.\n\nI won't write your essays for you - instead, I'll ask thoughtful questions to help you reflect on your experiences and express them authentically.\n\nWhat aspect of your scholarship application would you like to work on today? For example:\n- Personal statement or essay\n- Leadership experiences\n- Community service stories\n- Academic achievements"
+          content: "Hello! I'm your Linku Socratic Mentor. I'm here to help you craft compelling scholarship applications by guiding you to discover and articulate your own unique story.\n\nI won't write your essays for you - instead, I'll ask thoughtful questions to help you reflect on your experiences and express them authentically.\n\nWhat aspect of your scholarship application would you like to work on today? For example:\n- Personal statement or essay\n- Leadership experiences\n- Community service stories\n- Academic achievements"
         }
       ]);
     }

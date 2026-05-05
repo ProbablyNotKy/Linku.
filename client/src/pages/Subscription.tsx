@@ -266,7 +266,7 @@ export default function Subscription() {
           </div>
 
           <p className="text-center text-sm text-muted-foreground mt-8">
-            Secure payment powered by ToyyibPay. Questions? Contact us at support@ascendia.my
+            Secure payment powered by ToyyibPay. Questions? Contact us at support@linku.my
           </p>
         </div>
       </div>

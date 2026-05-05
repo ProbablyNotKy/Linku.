@@ -1,0 +1,42 @@
+Role: You are an expert Front-End Engineer and UI/UX Designer specializing in React, Vite, Tailwind CSS, and Framer Motion.
+
+Task: We are executing a major rebrand and UI overhaul of this project. The platform is transitioning from "Ascendia Education" to "Linku". I need you to completely overhaul the frontend to be a premium, modern, professional, and dark-mode-exclusive SaaS application. Remove the current "vibe-coded / AI-generated" aesthetic. Ensure absolute structural cleanliness and robust Framer Motion animations.
+
+1. Global Refactoring (The Rebrand):
+
+Perform a project-wide search and replace: Change all instances of "Ascendia", "Ascendia Education", and "AscendiaEducation" to "Linku".
+
+Update the <title> in index.html to "Linku | AI-Powered Scholarship Matching" and update any meta descriptions.
+
+2. Design System & Theme (Dark Mode Only):
+
+Force the app into a strict dark mode theme using Tailwind classes. Do not implement a light mode toggle.
+
+Background: Deep Midnight (bg-[#0B0F19]).
+
+Cards/Surfaces: Slate Charcoal (bg-[#1A202C] or bg-white/5 with backdrop blur for glassmorphism).
+
+Primary Accent: Electric Blue (text-blue-500, bg-blue-600).
+
+Secondary Accent / Success: Neon Mint/Emerald (text-emerald-400, bg-emerald-500).
+
+Typography: Use a clean, modern sans-serif (like Inter or Roboto). Primary text should be pure white (text-white), secondary text should be light gray (text-gray-400).
+
+3. Animations (Using Framer Motion):
+
+Initial App Load Animation: Create a splash screen effect. When the site first loads, the screen should be solid #0B0F19. A bold text logo that says "Linku." (using a heavy font weight, maybe with the period in Electric Blue) should fade in, scale up slightly (scale: 1.05), hold for 1 second, and then slide up or fade out to reveal the main application UI.
+
+Scroll Animations: For all sections below the fold, use Framer Motion's whileInView prop to trigger animations. Elements should fade in (opacity: 0 to 1) and slide up slightly (y: 20 to 0) as the user scrolls them into view. Add slight staggering to list items or grid cards.
+
+4. Layout & Component Overhaul (Using Shadcn UI + Tailwind):
+Completely restructure the main landing page into the following sections:
+
+Navbar: Minimalist glassmorphism sticky header. Bold text "Linku." as the logo on the left. Navigation links in the center. Login/Signup buttons on the right (use Shadcn UI Buttons).
+
+Hero Section: High-impact and clean. A large, bold headline (e.g., "Fund Your Future. Faster."). A concise subheadline. Two CTA buttons (Primary: "Find Scholarships", Secondary: "How it Works"). No messy background images; rely on subtle radial gradients or a glowing mesh effect behind the text.
+
+Value Proposition (Features): Use a modern "Bento Box" grid layout. Cards should showcase key features (AI Matching, Fast Application, Track Status). Apply hover effects (hover:scale-[1.02] hover:border-blue-500/50) to the cards.
+
+How It Works: A clean, vertical, animated timeline component showing steps (Create Profile -> AI Matches -> Apply -> Win).
+
+Footer: A clean, standard SaaS footer with the "Linku" brand name, copyright, and standard links.

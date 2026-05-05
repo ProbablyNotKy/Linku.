@@ -1,7 +1,7 @@
-# Ascendia - Malaysian Scholarship Discovery Platform
+# Linku - Malaysian Scholarship Discovery Platform
 
 ## Overview
-Ascendia is a scholarship discovery platform for Malaysian students, providing a responsive UI, AI-powered matching, and a Socratic AI mentor for application guidance. It aims to connect students with educational opportunities efficiently and effectively.
+Linku (formerly Ascendia) is a scholarship discovery platform for Malaysian students, providing a premium dark-mode UI, AI-powered matching, and a Socratic AI mentor for application guidance. It aims to connect students with educational opportunities efficiently and effectively.
 
 ## User Preferences
 - **Communication Style**: I prefer simple language and direct answers.
@@ -15,10 +15,17 @@ Ascendia is a scholarship discovery platform for Malaysian students, providing a
 Ascendia is built as a polyglot monorepo. The core components include a FastAPI (Python) backend, a React/Vite frontend, and Supabase as the database. AI capabilities are powered by OpenAI for embeddings and chat.
 
 ### UI/UX Decisions
-- **Brand Color**: Indigo-600 (#4f46e5).
-- **Typography**: Amount text in Green (#16a34a), urgent deadlines highlighted in Red.
-- **Layout**: Utilizes a responsive grid system (3 columns for desktop, 2 for tablet, 1 for mobile).
-- **Components**: Leverages Shadcn UI for consistent and accessible components.
+- **Brand**: "Linku." — bold wordmark with a blue period (text-blue-500).
+- **Theme**: Dark-mode exclusive. Background: #0B0F19 (Deep Midnight, HSL 223 39% 7%). Cards: #1A202C (Slate Charcoal, HSL 220 26% 14%).
+- **Primary Accent**: Electric Blue (blue-500/#3b82f6, CSS variable `--primary: 217 91% 60%`).
+- **Secondary Accent**: Neon Mint/Emerald (text-emerald-400).
+- **Typography**: Inter font. Primary text pure white, secondary text gray-400.
+- **Animations**: Framer Motion — SplashScreen on first load (once per browser session via sessionStorage), `whileInView` scroll animations on landing page sections, staggered card animations.
+- **Landing Page**: Hero with radial gradient glow, Bento-box feature grid, vertical animated timeline (How It Works), CTA section, clean footer.
+- **Header**: Glassmorphism (bg-[#0B0F19]/80 backdrop-blur-xl), "Linku." logo left, nav center, auth buttons right.
+- **Amount text**: Green (#16a34a). Urgent deadlines highlighted in Red.
+- **Layout**: Responsive grid system (3 columns desktop, 2 tablet, 1 mobile).
+- **Components**: Shadcn UI for consistent and accessible components.
 
 ### Technical Implementations
 - **Backend**: FastAPI handles API requests, AI integrations, and database interactions with Supabase. It includes endpoints for scholarship CRUD, AI-powered matching, user profile management, and admin functions.
