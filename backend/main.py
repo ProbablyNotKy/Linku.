@@ -232,6 +232,7 @@ def ensure_columns():
         cursor.execute("""
             ALTER TABLE scholarships ADD COLUMN IF NOT EXISTS institution_type TEXT;
             ALTER TABLE scholarships ALTER COLUMN amount DROP NOT NULL;
+            ALTER TABLE scholarships ALTER COLUMN deadline DROP NOT NULL;
         """)
         conn.commit()
         print("[DB] Ensured institution_type column exists.")
@@ -364,10 +365,10 @@ def create_scholarship(
         "min_muet", "min_ielts"
     ]
     
-    # Build insert payload with core columns only
+    # Build insert payload with core columns only (skip None values to avoid NOT NULL violations)
     insert_data = {}
     for col in core_columns:
-        if col in data:
+        if col in data and data[col] is not None:
             insert_data[col] = data[col]
     
     result = supabase.table("scholarships").insert(insert_data).execute()
