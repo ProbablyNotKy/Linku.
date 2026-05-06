@@ -20,18 +20,20 @@ import PaymentStatus from "@/pages/PaymentStatus";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/scholarships" component={Scholarships} />
-      <Route path="/login" component={Login} />
-      <Route path="/signup" component={Signup} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/onboarding" component={Onboarding} />
-      <Route path="/subscription" component={Subscription} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/payment-status" component={PaymentStatus} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="flex-grow flex flex-col">
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route path="/scholarships" component={Scholarships} />
+        <Route path="/login" component={Login} />
+        <Route path="/signup" component={Signup} />
+        <Route path="/admin" component={Admin} />
+        <Route path="/onboarding" component={Onboarding} />
+        <Route path="/subscription" component={Subscription} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/payment-status" component={PaymentStatus} />
+        <Route component={NotFound} />
+      </Switch>
+    </div>
   );
 }
 
@@ -60,7 +62,9 @@ function App() {
             {!splashDone && (
               <SplashScreen onComplete={handleSplashComplete} />
             )}
-            <Router />
+            <div className="min-h-screen flex flex-col bg-[#0B0F19]">
+              <Router />
+            </div>
           </TooltipProvider>
         </AuthProvider>
       </ThemeProvider>
