@@ -3,7 +3,8 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Eye, Zap, Globe, Quote } from "lucide-react";
+import { Eye, Zap, Globe, Quote, Mail } from "lucide-react";
+import founderPhoto from "@assets/WhatsApp_Image_2026-05-06_at_16.46.18_1778057698055.jpeg";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 32 },
@@ -106,18 +107,22 @@ export default function About() {
               whileInView="show"
               viewport={{ once: true, margin: "-80px" }}
             >
-              {/* Photo placeholder */}
+              {/* Founder photo */}
               <motion.div variants={fadeUp} className="flex justify-center md:justify-start">
                 <div
-                  className="w-full max-w-sm aspect-[3/4] rounded-3xl bg-white/5 backdrop-blur-md border border-emerald-500/25 flex flex-col items-center justify-center gap-4 relative overflow-hidden"
-                  data-testid="placeholder-founder-photo"
+                  className="w-full max-w-sm aspect-[3/4] rounded-3xl border border-emerald-500/25 relative overflow-hidden shadow-[0_0_40px_rgba(16,185,129,0.12)]"
+                  data-testid="founder-photo"
                 >
-                  {/* Decorative inner glow */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/8 via-transparent to-blue-500/8 pointer-events-none" />
-                  <div className="w-24 h-24 rounded-full bg-white/8 border border-white/10 flex items-center justify-center text-4xl font-black text-white/30 z-10">
-                    K
-                  </div>
-                  <p className="text-xs text-gray-600 z-10">Khai — Founder</p>
+                  <img
+                    src={founderPhoto}
+                    alt="Khai — Founder of Linku, at MIT"
+                    className="w-full h-full object-cover object-top"
+                  />
+                  {/* Subtle gradient overlay at bottom */}
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0B0F19]/80 to-transparent pointer-events-none" />
+                  <p className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-400 z-10">
+                    Khai @ MIT, Cambridge MA
+                  </p>
                 </div>
               </motion.div>
 
@@ -233,6 +238,55 @@ export default function About() {
                   </motion.div>
                 );
               })}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ── Section F: Get in Touch ── */}
+        <section className="py-24 px-4 sm:px-6 lg:px-8 border-t border-white/5">
+          <div className="max-w-2xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ boxShadow: "0 0 40px rgba(59,130,246,0.14)" }}
+              className="rounded-3xl bg-white/5 backdrop-blur-md border border-white/10 hover:border-blue-500/30 transition-all duration-300 p-10 sm:p-14 flex flex-col items-center text-center gap-6"
+              data-testid="card-contact"
+            >
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center">
+                <Mail className="w-6 h-6 text-blue-500" />
+              </div>
+
+              {/* Text */}
+              <div className="space-y-3">
+                <h2
+                  className="text-2xl sm:text-3xl font-bold text-white"
+                  data-testid="text-contact-heading"
+                >
+                  Let's Connect.
+                </h2>
+                <p
+                  className="text-gray-400 leading-relaxed max-w-md mx-auto text-sm sm:text-base"
+                  data-testid="text-contact-subheading"
+                >
+                  Whether you have questions about the platform, want to provide feedback, or are
+                  interested in partnering to help more students, my inbox is always open.
+                </p>
+              </div>
+
+              {/* Button */}
+              <a href="mailto:linkueducationmy@gmail.com" data-testid="link-email-founder">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="border-white/15 text-white hover:bg-white/8 hover:border-blue-500/40 hover:text-blue-300 transition-all px-8"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email the Founder
+                </Button>
+              </a>
             </motion.div>
           </div>
         </section>
