@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import SplashScreen from "@/components/SplashScreen";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
+import About from "@/pages/About";
 import Scholarships from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Onboarding from "@/pages/Onboarding";
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/subscription" component={Subscription} />
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/payment-status" component={PaymentStatus} />
+        <Route path="/about" component={About} />
         <Route component={NotFound} />
       </Switch>
     </div>

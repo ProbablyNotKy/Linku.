@@ -1,0 +1,54 @@
+1. Page Layout & Theme:
+
+Adhere strictly to the established Linku design system: Dark mode only (Deep Midnight #0B0F19 background).
+
+Use Framer Motion for smooth, staggered fade-in and slide-up animations as the user scrolls down the page.
+
+Ensure the page wrapper has min-h-screen flex flex-col so the footer stays at the bottom.
+
+2. Content & Component Structure:
+Please build the page using the following sections and use this exact text:
+
+Section A: The Hero / Mission
+
+UI: A clean, centered header with a subtle Electric Blue radial gradient behind it.
+
+Heading: "Democratizing Opportunity."
+
+Subheading: "We believe that talent is evenly distributed, but opportunity is not. Linku is an AI-powered engine built to bridge the gap between ambitious Malaysian students and the funding they deserve."
+
+Section B: The Founder's Story (Split Layout)
+
+UI: A two-column layout (Grid or Flexbox). Left side: A stylized placeholder for a photo (use a glassmorphism card bg-white/5 with a subtle neon mint border). Right side: The story text.
+
+Heading: "Built by Students, For Students."
+
+Text Paragraph 1: "Linku wasn't built in a corporate boardroom. It was born out of frustration. As a student coming from a humble background in Sabah, navigating the maze of scholarship applications felt like a second full-time job. Broken links, hidden requirements, and missed deadlines were the norm."
+
+Text Paragraph 2: "But education changes everything. That drive eventually led our founder, Khai, to represent Malaysia in the United States as a fellow for innovation and entrepreneurship. That experience solidified a core belief: technology should be used to lift others up. Now a Software Engineering student at UMS, Khai built Linku to ensure the ladder of opportunity is accessible to everyone."
+
+Section C: The Quote (Highlight Component)
+
+UI: A prominent blockquote section. Large, elegant serif or stylized sans-serif font. Add a large, decorative quotation mark icon using Shadcn or Lucide icons in Electric Blue.
+
+Quote Text: "I know what it’s like to wonder if you can afford your ambitions. I built Linku to make sure no student ever has to abandon their future simply because they couldn't find the right door to open."
+
+Attribution: "— Khairul Iznill (Khai), Founder & Lead Developer"
+
+Section D: Core Values (Bento Box / Grid layout)
+
+UI: 3 glassmorphism cards with Lucide React icons.
+
+Card 1: Icon: Eye. Title: "Radical Visibility". Text: "Making every scholarship, grant, and fund visible and searchable."
+
+Card 2: Icon: Zap. Title: "AI-Precision". Text: "No more guessing. Our semantic engine matches you to what you actually qualify for."
+
+Card 3: Icon: Globe. Title: "Community Driven". Text: "Rooted in Malaysia, built for the next generation of global leaders."
+
+Section E: Call to Action (Bottom of page)
+
+UI: A centered block.
+
+Heading: "Ready to fund your future?"
+
+Action: A large Shadcn UI Button (Electric Blue background, hover effect to scale up slightly) that says "Create Your Free AI Profile".

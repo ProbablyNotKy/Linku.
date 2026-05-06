@@ -38,6 +38,12 @@ export default function Header() {
             >
               Pricing
             </Link>
+            <Link
+              href="/about"
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              About
+            </Link>
             {!isLoading && user && (
               <Link
                 href="/dashboard"
