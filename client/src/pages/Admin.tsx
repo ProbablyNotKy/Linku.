@@ -29,6 +29,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
 import { Button } from "@/components/ui/button";
+import BulkUpload from "@/components/BulkUpload";
 
 interface FormData {
   title: string;
@@ -103,7 +104,7 @@ export default function Admin() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"scholarships" | "discovery" | "users">("scholarships");
+  const [activeTab, setActiveTab] = useState<"scholarships" | "discovery" | "users" | "bulk">("scholarships");
   const [scrapeUrlList, setScrapeUrlList] = useState<string[]>([""]);
   const [isScrapingUrl, setIsScrapingUrl] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -730,6 +731,18 @@ export default function Admin() {
                 {userStats.premium}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab("bulk")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "bulk"
+                ? "bg-blue-600 text-white"
+                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+            }`}
+            data-testid="tab-bulk"
+          >
+            <Upload className="w-4 h-4" />
+            Bulk Upload
           </button>
         </div>
 
@@ -2218,6 +2231,18 @@ export default function Admin() {
               )}
             </div>
           </>
+        )}
+
+        {activeTab === "bulk" && (
+          <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-6">
+            <BulkUpload
+              accessToken={accessToken ?? ""}
+              onSuccess={() => {
+                setSuccessMessage("Scholarships imported successfully!");
+                setTimeout(() => setSuccessMessage(""), 4000);
+              }}
+            />
+          </div>
         )}
     </main>
   );

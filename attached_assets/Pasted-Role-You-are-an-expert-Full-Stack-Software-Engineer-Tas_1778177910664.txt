@@ -1,0 +1,52 @@
+Role: You are an expert Full-Stack Software Engineer.
+
+Task: I need to build a "Bulk Upload" feature for my admin dashboard to import multiple scholarships at once.
+
+Tech Stack:
+
+Frontend: [Insert your frontend framework, e.g., React / Next.js / Vue]
+
+Backend: FastAPI (Python)
+
+Database: Supabase (PostgreSQL)
+
+Feature Requirements:
+
+1. Frontend (Admin UI):
+
+Create a drag-and-drop upload zone that accepts .csv or .json files.
+
+Include a downloadable "Template File" button so admins know exactly what columns/keys are required.
+
+After a file is uploaded, display a "Preview Table" of the parsed data so the admin can review it before hitting the final "Submit" button.
+
+Add loading states and success/error toast notifications.
+
+2. Backend (FastAPI Endpoint):
+
+Create a new POST endpoint (e.g., /api/scholarships/bulk-upload) that accepts the payload from the frontend.
+
+The endpoint should validate the incoming data against a Pydantic schema (ensuring fields like title, provider, and deadline are present).
+
+Handle data transformation: Ensure comma-separated strings (like tags or study areas) are converted into arrays if necessary.
+
+3. Database (Supabase):
+
+Use the Supabase Python client to execute a bulk insert() operation into the scholarships table.
+
+Ensure the operation handles errors gracefully (e.g., skipping duplicates or returning clear error messages if a row fails).
+
+Please generate:
+
+The frontend component code.
+
+The FastAPI endpoint code, including the Pydantic model.
+
+Instructions on how to connect the two.
+
+Pro-Tips for Implementing This
+Go with CSV: For admin tools, CSVs are usually the easiest way to handle bulk data because you can scrape lists like the one you found, drop them into Excel or Google Sheets, format the columns, and export directly.
+
+Validation is Key: The Pydantic model on your FastAPI backend is your best friend here. It will stop bad data (like text in a date field) from crashing your Supabase database.
+
+Keep it Simple First: Don't worry about complex AI-matching context generation in the bulk upload initially. Just get the raw data in, and you can always build an "AI Auto-Fill" button for individual records later.

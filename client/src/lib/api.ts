@@ -534,4 +534,25 @@ export async function createPaymentBill(
   return response.json();
 }
 
+export interface BulkUploadResult {
+  inserted: number;
+  errors: string[];
+}
+
+export async function bulkUploadScholarships(
+  rows: Record<string, string | undefined>[],
+  accessToken: string
+): Promise<BulkUploadResult> {
+  const response = await fetch("/api/admin/bulk-upload", {
+    method: "POST",
+    headers: getAuthHeaders(accessToken),
+    body: JSON.stringify({ scholarships: rows }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Upload failed: ${response.status}`);
+  }
+  return response.json();
+}
+
 export { type Subscription, type FeatureAccess, type PremiumFeature };

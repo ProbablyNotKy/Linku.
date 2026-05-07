@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Depends, Request, Form
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
@@ -2522,3 +2522,118 @@ def list_users_with_subscriptions(
     except Exception as e:
         print(f"[Admin Users] Error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+
+
+# ── Bulk Upload ──────────────────────────────────────────────────────────────
+
+class BulkUploadItem(BaseModel):
+    title: str
+    provider: str
+    amount: Optional[str] = None
+    deadline: Optional[str] = None
+    education_level: Optional[str] = None   # comma-separated or single value
+    url: Optional[str] = None
+    tags: Optional[str] = None              # comma-separated
+    study_areas: Optional[str] = None       # comma-separated
+    min_cgpa: Optional[str] = None
+    is_bumiputera_only: Optional[str] = "false"
+    deadline_type: Optional[str] = "Fixed"
+
+class BulkUploadRequest(BaseModel):
+    scholarships: List[BulkUploadItem]
+
+def _to_array(value: Optional[str]) -> Optional[List[str]]:
+    """Convert a comma-separated string to a list, or return None if empty."""
+    if not value or not value.strip():
+        return None
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+def _to_bool(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    return str(value).strip().lower() in ("true", "1", "yes")
+
+def _to_float(value: Optional[str]) -> Optional[float]:
+    if not value or not value.strip():
+        return None
+    try:
+        return float(value.strip())
+    except ValueError:
+        return None
+
+def _to_date(value: Optional[str]) -> Optional[str]:
+    if not value or not value.strip():
+        return None
+    try:
+        from datetime import date as _date
+        # Accept YYYY-MM-DD format
+        parsed = _date.fromisoformat(value.strip())
+        return str(parsed)
+    except Exception:
+        return None
+
+@app.post("/api/admin/bulk-upload")
+async def bulk_upload_scholarships(
+    payload: BulkUploadRequest,
+    current_user: AuthUser = Depends(require_admin)
+):
+    """
+    Bulk insert scholarships from a parsed CSV/JSON payload.
+    Validates required fields (title, provider) and coerces data types.
+    Returns count of inserted rows and any per-row errors.
+    """
+    inserted = 0
+    errors: List[str] = []
+
+    for i, item in enumerate(payload.scholarships):
+        row_label = f"Row {i + 1} ({item.title[:30]})"
+        try:
+            if not item.title.strip() or not item.provider.strip():
+                errors.append(f"{row_label}: Missing required fields (title, provider)")
+                continue
+
+            record = {
+                "title": item.title.strip(),
+                "provider": item.provider.strip(),
+            }
+
+            if item.amount and item.amount.strip():
+                record["amount"] = item.amount.strip()
+
+            deadline_str = _to_date(item.deadline)
+            if deadline_str:
+                record["deadline"] = deadline_str
+
+            edu = _to_array(item.education_level)
+            if edu:
+                record["education_level"] = edu
+
+            if item.url and item.url.strip():
+                record["url"] = item.url.strip()
+
+            tags = _to_array(item.tags)
+            if tags:
+                record["tags"] = tags
+
+            areas = _to_array(item.study_areas)
+            if areas:
+                record["study_areas"] = areas
+
+            cgpa = _to_float(item.min_cgpa)
+            if cgpa is not None:
+                record["min_cgpa"] = cgpa
+
+            record["is_bumiputera_only"] = _to_bool(item.is_bumiputera_only)
+            record["deadline_type"] = (item.deadline_type or "Fixed").strip()
+
+            supabase.table("scholarships").insert(record).execute()
+            inserted += 1
+            print(f"[BulkUpload] Inserted: {item.title}")
+
+        except Exception as e:
+            err_msg = f"{row_label}: {str(e)[:120]}"
+            errors.append(err_msg)
+            print(f"[BulkUpload] Error on {row_label}: {e}")
+
+    print(f"[BulkUpload] Done — {inserted} inserted, {len(errors)} errors")
+    return {"inserted": inserted, "errors": errors}
