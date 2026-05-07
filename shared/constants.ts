@@ -95,3 +95,27 @@ export type SpmEnglishGrade = typeof SPM_ENGLISH_GRADES[number];
 export const MUET_BANDS = [1, 2, 3, 4, 5] as const;
 
 export type MuetBand = typeof MUET_BANDS[number];
+
+export interface QualificationOption {
+  value: string;
+  label: string;
+  desc: string;
+}
+
+export const HIGHEST_QUALIFICATIONS: QualificationOption[] = [
+  { value: "SPM", label: "SPM", desc: "Malaysian Certificate of Education" },
+  { value: "IGCSE/O-Level", label: "IGCSE / O-Level", desc: "International or British O-Level" },
+  { value: "STPM", label: "STPM", desc: "Malaysian Higher Certificate of Education" },
+  { value: "Matriculation", label: "Matriculation", desc: "KPM Matriculation Programme" },
+  { value: "Foundation / Asasi", label: "Foundation / Asasi", desc: "University Foundation Programme" },
+  { value: "Diploma", label: "Diploma", desc: "Polytechnic or College Diploma" },
+  { value: "Degree", label: "Degree", desc: "Bachelor's Degree" },
+];
+
+export const INTENDED_STUDY_LEVELS: QualificationOption[] = [
+  { value: "Pre-University", label: "Pre-University", desc: "Foundation, Matriculation, A-Levels, STPM" },
+  { value: "Diploma", label: "Diploma", desc: "Polytechnic or College Diploma" },
+  { value: "Undergraduate / Degree", label: "Undergraduate / Degree", desc: "Bachelor's Degree Programme" },
+  { value: "Professional Certificate", label: "Professional Certificate", desc: "ACCA, CPA, CIMA, CFA, etc." },
+  { value: "Postgraduate", label: "Postgraduate", desc: "Master's or PhD Programme" },
+];

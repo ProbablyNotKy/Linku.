@@ -74,6 +74,25 @@ SPM_ENGLISH_GRADES = ["A+", "A", "A-", "B+", "B", "C+", "C", "D", "E", "G"]
 
 MUET_BANDS = [1, 2, 3, 4, 5]
 
+# New decoupled education fields (v2 matching system)
+HIGHEST_QUALIFICATIONS = [
+    "SPM",
+    "IGCSE/O-Level",
+    "STPM",
+    "Matriculation",
+    "Foundation / Asasi",
+    "Diploma",
+    "Degree",
+]
+
+INTENDED_STUDY_LEVELS = [
+    "Pre-University",
+    "Diploma",
+    "Undergraduate / Degree",
+    "Professional Certificate",
+    "Postgraduate",
+]
+
 # Education level hierarchy for pathway matching
 EDUCATION_HIERARCHY = {
     "SPM": 1,

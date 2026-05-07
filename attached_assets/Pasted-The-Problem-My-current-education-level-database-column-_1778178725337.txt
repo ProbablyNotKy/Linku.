@@ -1,0 +1,45 @@
+The Problem: My current education_level database column and onboarding UI are confusing. It mixes a user's past qualifications (e.g., SPM) with their future intended study level (e.g., Pre-University). This makes scholarship matching inaccurate.
+
+The Goal: I need to completely refactor the database schema, backend matching logic, and frontend onboarding UI to decouple "Highest Qualification" from "Intended Study Level."
+
+Please implement the following architecture step-by-step:
+
+Step 1: Database Schema Migration (Supabase / PostgreSQL)
+Write the SQL migration or Supabase Python client code to update the users and scholarships tables.
+
+For the users table:
+
+Remove the old education_level column.
+
+Add highest_qualification (String/Enum). Valid options: ['SPM', 'IGCSE/O-Level', 'STPM', 'Matriculation', 'Foundation / Asasi', 'Diploma', 'Degree']
+
+Add intended_study_level (String/Enum). Valid options: ['Pre-University', 'Diploma', 'Undergraduate / Degree', 'Professional Certificate', 'Postgraduate']
+
+For the scholarships table:
+
+Remove the old education_level column.
+
+Add target_study_levels (Array of Strings). e.g., ['Pre-University', 'Undergraduate / Degree']
+
+Add specific_qualifications_required (Array of Strings, nullable). e.g., ['Matriculation', 'STPM']
+
+Step 2: Frontend Onboarding UI (React)
+Create a sequential, two-step onboarding component for the student profile setup.
+
+Question 1: "What is your highest completed qualification?" (Render as clickable UI cards with the highest_qualification options).
+
+Question 2: "What level of study are you seeking funding for?" (Render as clickable UI cards with the intended_study_level options).
+
+Ensure the state is managed cleanly and submitted as a single JSON payload to the FastAPI backend.
+
+Step 3: FastAPI Backend Models (Pydantic)
+Update the Pydantic schemas for UserUpdate, ScholarshipCreate, and ScholarshipResponse to reflect the new fields.
+
+Step 4: The Matching Algorithm (Python / FastAPI)
+Write the logic for the /api/matches endpoint. The matching logic MUST follow these rules:
+
+Primary Match: The scholarship's target_study_levels array must contain the user's intended_study_level.
+
+Constraint Match (The Specifics): IF the scholarship has data in specific_qualifications_required (e.g., it only wants Matriculation students), it MUST check if the user's highest_qualification matches. If the scholarship's specific_qualifications_required is null or empty, it means it is open to any qualification (e.g., open to any Pre-Uni student regardless of whether they did SPM or IGCSE), and this check should be bypassed.
+
+Please output the Frontend Code, the Pydantic Models, the Matching Function, and the SQL/Migration logic in clearly separated blocks.

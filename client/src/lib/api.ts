@@ -10,6 +10,8 @@ import {
   EDUCATION_LEVELS,
   MUET_BANDS,
   getIncomeRmValue,
+  HIGHEST_QUALIFICATIONS,
+  INTENDED_STUDY_LEVELS,
   Subscription,
   FeatureAccess,
   PremiumFeature,
@@ -23,6 +25,8 @@ export {
   EDUCATION_LEVELS, 
   MUET_BANDS,
   getIncomeRmValue,
+  HIGHEST_QUALIFICATIONS,
+  INTENDED_STUDY_LEVELS,
 };
 
 export interface FetchScholarshipsParams {
@@ -336,7 +340,7 @@ export async function rejectDraft(id: number, accessToken?: string): Promise<voi
 
 // User Profile types and functions
 export interface UserProfileCreate {
-  education_level: string;
+  education_level?: string | null;  // Legacy — kept for backward compat
   cgpa?: number | null;
   spm_as?: number | null;
   household_income: string;  // B40, M40, T20
@@ -347,6 +351,9 @@ export interface UserProfileCreate {
   muet_band?: number | null;
   ielts_score?: number | null;
   spm_english_grade?: string | null;
+  // v2 decoupled education fields
+  highest_qualification?: string | null;
+  intended_study_level?: string | null;
 }
 
 export interface UserProfileResponse {
@@ -363,6 +370,8 @@ export interface UserProfileResponse {
   muet_band: number | null;
   ielts_score: number | null;
   spm_english_grade: string | null;
+  highest_qualification: string | null;
+  intended_study_level: string | null;
 }
 
 // SPM_ENGLISH_GRADES is now exported from @shared/schema

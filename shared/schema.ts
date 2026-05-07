@@ -13,7 +13,10 @@ export {
   INCOME_BRACKET_LIST,
   getIncomeRmValue,
   MUET_BANDS,
+  HIGHEST_QUALIFICATIONS,
+  INTENDED_STUDY_LEVELS,
 } from "./constants";
+export type { QualificationOption } from "./constants";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -123,7 +126,7 @@ export interface ScholarshipDraft {
 // Student profile for matching
 export interface StudentProfile {
   bio: string;
-  education_level?: string;
+  education_level?: string;  // Legacy
   field_of_study?: string;
   cgpa?: number | null;
   spm_as?: number | null;
@@ -136,6 +139,9 @@ export interface StudentProfile {
   muet_band?: number | null;
   ielts_score?: number | null;
   spm_english_grade?: string | null;
+  // v2 decoupled education fields
+  highest_qualification?: string | null;
+  intended_study_level?: string | null;
 }
 
 // SPM_ENGLISH_GRADES is now exported from constants.ts

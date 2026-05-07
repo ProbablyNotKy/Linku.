@@ -3,7 +3,7 @@ from datetime import date
 from typing import Optional, List
 
 # Import shared constants from constants.py
-from constants import MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES
+from constants import MALAYSIAN_STATES, STUDY_AREAS, SPM_ENGLISH_GRADES, HIGHEST_QUALIFICATIONS, INTENDED_STUDY_LEVELS
 
 
 class ScholarshipCreate(BaseModel):
@@ -11,7 +11,7 @@ class ScholarshipCreate(BaseModel):
     provider: str
     amount: Optional[str] = None
     deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
-    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all (legacy)
     institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -35,6 +35,9 @@ class ScholarshipCreate(BaseModel):
     # Deadline flexibility fields
     deadline_type: Optional[str] = "Fixed"  # Fixed, Estimated, Rolling, TBA
     opens_at: Optional[date] = None  # When applications typically open
+    # v2 Education matching (decoupled qualification vs study level)
+    target_study_levels: Optional[List[str]] = None  # e.g., ["Pre-University", "Undergraduate / Degree"]
+    specific_qualifications_required: Optional[List[str]] = None  # e.g., ["Matriculation", "STPM"]. Null = open to all
 
 
 class ScholarshipResponse(BaseModel):
@@ -43,7 +46,7 @@ class ScholarshipResponse(BaseModel):
     provider: str
     amount: Optional[str] = None
     deadline: Optional[date] = None  # Made optional for Rolling/TBA scholarships
-    education_level: Optional[List[str]] = None  # Array of levels, null = open to all
+    education_level: Optional[List[str]] = None  # Array of levels, null = open to all (legacy)
     institution_type: Optional[str] = None  # IPTA, IPTS, or Both
     url: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -67,6 +70,9 @@ class ScholarshipResponse(BaseModel):
     # Deadline flexibility fields
     deadline_type: Optional[str] = "Fixed"  # Fixed, Estimated, Rolling, TBA
     opens_at: Optional[date] = None  # When applications typically open
+    # v2 Education matching
+    target_study_levels: Optional[List[str]] = None
+    specific_qualifications_required: Optional[List[str]] = None
 
     class Config:
         from_attributes = True
@@ -245,7 +251,7 @@ class PublishResponse(BaseModel):
 
 # User Profile schemas
 class UserProfileCreate(BaseModel):
-    education_level: str
+    education_level: Optional[str] = None  # Legacy field (kept for backward compat)
     cgpa: Optional[float] = None
     spm_as: Optional[int] = None
     household_income: str  # B40, M40, T20
@@ -257,11 +263,14 @@ class UserProfileCreate(BaseModel):
     muet_band: Optional[float] = None  # MUET Band (1-5)
     ielts_score: Optional[float] = None  # IELTS score (0-9)
     spm_english_grade: Optional[str] = None  # SPM English grade (A+, A, A-, B+, etc.)
+    # v2 decoupled education fields
+    highest_qualification: Optional[str] = None  # e.g., "SPM", "Diploma"
+    intended_study_level: Optional[str] = None  # e.g., "Undergraduate / Degree"
 
 
 class UserProfileResponse(BaseModel):
     id: str
-    education_level: Optional[str] = None
+    education_level: Optional[str] = None  # Legacy
     cgpa: Optional[float] = None
     spm_as: Optional[int] = None
     household_income: Optional[str] = None
@@ -274,6 +283,9 @@ class UserProfileResponse(BaseModel):
     muet_band: Optional[float] = None
     ielts_score: Optional[float] = None
     spm_english_grade: Optional[str] = None
+    # v2 decoupled education fields
+    highest_qualification: Optional[str] = None
+    intended_study_level: Optional[str] = None
 
     class Config:
         from_attributes = True

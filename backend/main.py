@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query, Depends, Request, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import List, Optional
 import os
 import json
@@ -362,7 +363,8 @@ def create_scholarship(
         "banner_image_url", "deadline_type", "opens_at",
         "study_areas", "min_cgpa", "min_spm_as", "household_income_max",
         "state_restriction", "is_bumiputera_only", "ai_matching_context",
-        "min_muet", "min_ielts"
+        "min_muet", "min_ielts",
+        "target_study_levels", "specific_qualifications_required",
     ]
     
     # Build insert payload with core columns only (skip None values to avoid NOT NULL violations)
@@ -467,7 +469,8 @@ def update_scholarship(
         "banner_image_url", "deadline_type", "opens_at",
         "study_areas", "min_cgpa", "min_spm_as", "household_income_max",
         "state_restriction", "is_bumiputera_only", "ai_matching_context",
-        "min_muet", "min_ielts"
+        "min_muet", "min_ielts",
+        "target_study_levels", "specific_qualifications_required",
     ]
     
     # Build core update payload
@@ -699,6 +702,54 @@ def check_education_pathway_eligibility(user_education: str, scholarship_educati
     return False, f"Education level mismatch: Your {user_level} level doesn't match {scholarship_education} scholarship"
 
 
+def check_new_study_level_eligibility(
+    user_intended_level: Optional[str],
+    user_highest_qual: Optional[str],
+    scholarship_target_levels,
+    scholarship_specific_quals
+) -> tuple[bool, Optional[str]]:
+    """
+    v2 Education matching logic (decoupled qualification from study level).
+
+    Rule 1 — Primary Match:
+        scholarship.target_study_levels must contain user.intended_study_level.
+    Rule 2 — Constraint Match (optional):
+        IF scholarship.specific_qualifications_required is non-empty,
+        user.highest_qualification must be in that list.
+        If the field is null/empty → open to any prior qualification.
+
+    Returns: (is_eligible, reason_string_or_None)
+    """
+    # No target_study_levels set → backward-compat with old scholarship data, skip check
+    target_levels: List[str] = []
+    if scholarship_target_levels:
+        target_levels = scholarship_target_levels if isinstance(scholarship_target_levels, list) else []
+
+    if not target_levels:
+        return True, None
+
+    # If user has not set intended_study_level, don't penalise
+    if not user_intended_level or not user_intended_level.strip():
+        return True, None
+
+    # Rule 1 — Primary Match
+    user_level_lower = user_intended_level.strip().lower()
+    if user_level_lower not in [t.strip().lower() for t in target_levels]:
+        return False, f"You're seeking {user_intended_level} funding, but this scholarship targets {', '.join(target_levels)}"
+
+    # Rule 2 — Constraint Match
+    specific_quals: List[str] = []
+    if scholarship_specific_quals:
+        specific_quals = scholarship_specific_quals if isinstance(scholarship_specific_quals, list) else []
+
+    if specific_quals and user_highest_qual and user_highest_qual.strip():
+        user_qual_lower = user_highest_qual.strip().lower()
+        if user_qual_lower not in [q.strip().lower() for q in specific_quals]:
+            return False, f"Requires prior qualification: {', '.join(specific_quals)} (you have {user_highest_qual})"
+
+    return True, None
+
+
 def check_study_area_overlap(user_areas: List[str], scholarship_areas: List[str]) -> tuple[bool, Optional[str], float]:
     """
     Check if user's intended study areas overlap with scholarship's required areas.
@@ -772,7 +823,11 @@ def generate_candidate_persona(profile: dict) -> str:
         
         # Build context for GPT-4o
         context_parts = []
-        if education_level:
+        if profile.get("highest_qualification"):
+            context_parts.append(f"Highest Qualification: {profile['highest_qualification']}")
+        if profile.get("intended_study_level"):
+            context_parts.append(f"Seeking: {profile['intended_study_level']} level funding")
+        if education_level and not profile.get("intended_study_level"):
             context_parts.append(f"Education Level: {education_level}")
         if study_areas:
             context_parts.append(f"Study Areas: {', '.join(study_areas)}")
@@ -826,8 +881,15 @@ def create_fallback_persona(profile: dict) -> str:
     """Create a simple persona when GPT-4o is unavailable."""
     parts = []
     
+    intended_level = profile.get("intended_study_level", "")
+    highest_qual = profile.get("highest_qualification", "")
     education_level = profile.get("education_level", "")
-    if education_level:
+
+    if intended_level and highest_qual:
+        parts.append(f"A {highest_qual} graduate seeking {intended_level} funding")
+    elif intended_level:
+        parts.append(f"A student seeking {intended_level} level funding")
+    elif education_level:
         parts.append(f"A {education_level} student")
     else:
         parts.append("A student")
@@ -1205,6 +1267,10 @@ def create_profile_text(profile: dict) -> str:
     parts = []
     if profile.get("bio_achievements"):
         parts.append(profile["bio_achievements"])
+    if profile.get("highest_qualification"):
+        parts.append(f"Highest qualification: {profile['highest_qualification']}.")
+    if profile.get("intended_study_level"):
+        parts.append(f"Seeking {profile['intended_study_level']} level funding.")
     if profile.get("education_level"):
         parts.append(f"Education level: {profile['education_level']}.")
     if profile.get("study_areas"):
@@ -1265,7 +1331,9 @@ def create_user_profile(
                 has_embedding=profile_data.get("embedding") is not None,
                 muet_band=profile_data.get("muet_band"),
                 ielts_score=profile_data.get("ielts_score"),
-                spm_english_grade=profile_data.get("spm_english_grade")
+                spm_english_grade=profile_data.get("spm_english_grade"),
+                highest_qualification=profile_data.get("highest_qualification"),
+                intended_study_level=profile_data.get("intended_study_level"),
             )
         raise HTTPException(status_code=500, detail="Failed to create profile")
     except Exception as e:
@@ -1294,7 +1362,9 @@ def get_user_profile(profile_id: str):
         has_embedding=profile_data.get("embedding") is not None,
         muet_band=profile_data.get("muet_band"),
         ielts_score=profile_data.get("ielts_score"),
-        spm_english_grade=profile_data.get("spm_english_grade")
+        spm_english_grade=profile_data.get("spm_english_grade"),
+        highest_qualification=profile_data.get("highest_qualification"),
+        intended_study_level=profile_data.get("intended_study_level"),
     )
 
 
@@ -1320,7 +1390,9 @@ def get_my_profile(user: AuthUser = Depends(get_current_user)):
         has_embedding=profile_data.get("embedding") is not None,
         muet_band=profile_data.get("muet_band"),
         ielts_score=profile_data.get("ielts_score"),
-        spm_english_grade=profile_data.get("spm_english_grade")
+        spm_english_grade=profile_data.get("spm_english_grade"),
+        highest_qualification=profile_data.get("highest_qualification"),
+        intended_study_level=profile_data.get("intended_study_level"),
     )
 
 
@@ -1398,12 +1470,27 @@ def match_with_profile(
             if is_scholarship_expired(row.get("deadline")):
                 continue  # Skip expired scholarships entirely
             
-            # 2. EDUCATION PATHWAY CHECK (Strict)
-            scholarship_edu_level = parse_postgres_array(row.get("education_level"))
-            edu_eligible, edu_reason = check_education_pathway_eligibility(
-                profile.get("education_level"),
-                scholarship_edu_level
-            )
+            # 2. EDUCATION CHECK
+            # v2: if scholarship has target_study_levels, use decoupled matching
+            scholarship_target_levels = parse_postgres_array(row.get("target_study_levels"))
+            scholarship_specific_quals = parse_postgres_array(row.get("specific_qualifications_required"))
+
+            if scholarship_target_levels:
+                # New v2 logic
+                edu_eligible, edu_reason = check_new_study_level_eligibility(
+                    profile.get("intended_study_level"),
+                    profile.get("highest_qualification"),
+                    scholarship_target_levels,
+                    scholarship_specific_quals,
+                )
+            else:
+                # Legacy fallback using education_level pathway
+                scholarship_edu_level = parse_postgres_array(row.get("education_level"))
+                edu_eligible, edu_reason = check_education_pathway_eligibility(
+                    profile.get("education_level"),
+                    scholarship_edu_level,
+                )
+
             if not edu_eligible:
                 is_eligible = False
                 ineligibility_reasons.append(edu_reason)
